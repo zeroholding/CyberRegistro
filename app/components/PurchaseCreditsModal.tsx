@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Modal from "./Modal";
@@ -507,7 +507,7 @@ export default function PurchaseCreditsModal({
                 number: cardNumber.replace(/\s/g, ""),
                 expiryMonth,
                 expiryYear: expiryYear ? `20${expiryYear}` : "",
-                ccv,
+                ccv: cvv,
               },
             }),
           });
