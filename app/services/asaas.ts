@@ -131,6 +131,27 @@ class AsaasService {
     }
   }
 
+  // Criar ou buscar cliente
+  async findOrCreateCustomer(data: CreateCustomerData) {
+    try {
+      // Tentar buscar cliente pelo CPF/CNPJ
+      if (data.cpfCnpj) {
+        const customers = await this.makeRequest(
+          `/customers?cpfCnpj=${data.cpfCnpj}`,
+        );
+        if (customers.data && customers.data.length > 0) {
+          return customers.data[0];
+        }
+      }
+
+      // Se não encontrou, criar novo cliente
+      return await this.makeRequest("/customers", "POST", data);
+    } catch (error) {
+      console.error("Erro ao buscar/criar cliente:", error);
+      throw error;
+    }
+  }
+
   // Criar cobranca PIX
   async createPixPayment(data: CreatePixPaymentData) {
     try {
