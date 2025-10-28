@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import Lottie from 'lottie-react';
@@ -7,6 +7,7 @@ import TransactionHistoryModal from './TransactionHistoryModal';
 
 interface CreditDisplayProps {
   credits?: number;
+  onCreditsUpdated?: () => void;
 }
 
 export default function CreditDisplay({ credits = 0, onCreditsUpdated }: CreditDisplayProps) {
