@@ -615,7 +615,7 @@ function RegistroPageContent() {
             </button>
             <button
               onClick={handleOpenPreview}
-              className="px-6 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors font-medium flex items-center gap-2"
+              className="px-6 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors font-medium flex items-center gap-2"
             >
               Continuar para Validação
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -646,7 +646,7 @@ function RegistroPageContent() {
                     onClick={() => setAutorTipo('proprio')}
                     className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
                       autorTipo === 'proprio'
-                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        ? 'bg-[#2F4F7F] text-white border-[#2F4F7F]'
                         : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -657,7 +657,7 @@ function RegistroPageContent() {
                     onClick={() => setAutorTipo('terceiro')}
                     className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
                       autorTipo === 'terceiro'
-                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        ? 'bg-[#2F4F7F] text-white border-[#2F4F7F]'
                         : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -703,7 +703,7 @@ function RegistroPageContent() {
                     onClick={() => setTitularTipo('proprio')}
                     className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
                       titularTipo === 'proprio'
-                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        ? 'bg-[#2F4F7F] text-white border-[#2F4F7F]'
                         : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -714,7 +714,7 @@ function RegistroPageContent() {
                     onClick={() => setTitularTipo('terceiro')}
                     className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
                       titularTipo === 'terceiro'
-                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        ? 'bg-[#2F4F7F] text-white border-[#2F4F7F]'
                         : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -800,7 +800,7 @@ function RegistroPageContent() {
             <button
               onClick={() => itemToGenerate && gerar(itemToGenerate)}
               disabled={generating !== null}
-              className="px-4 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors font-semibold disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors font-semibold disabled:opacity-50 flex items-center gap-2"
             >
               {generating !== null ? (
                 <>

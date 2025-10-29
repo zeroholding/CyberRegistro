@@ -249,7 +249,7 @@ export default function ContasConectadas() {
               <button
                 onClick={handleConnectAccount}
                 disabled={connectingAccount}
-                className="group px-8 py-3.5 bg-neutral-900 text-white rounded-xl hover:bg-neutral-800 transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group px-8 py-3.5 bg-[#2F4F7F] text-white rounded-xl hover:bg-[#253B65] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {connectingAccount ? (
                   <>
@@ -503,7 +503,7 @@ export default function ContasConectadas() {
           <div className="flex justify-end">
             <button
               onClick={() => setShowSuccessModal(false)}
-              className="px-4 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors font-medium"
+              className="px-4 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors font-medium"
             >
               Fechar
             </button>

@@ -245,7 +245,7 @@ export default function SyncListingsModal({ isOpen, onClose, userId, onSyncCompl
               <button
                 onClick={handleSync}
                 disabled={syncing || selectedAccounts.size === 0}
-                className="px-6 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {syncing ? (
                   <>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -19,7 +19,6 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   // Persist collapse state (desktop)
   useEffect(() => {
@@ -35,9 +34,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     } catch {}
   }, [collapsed]);
 
-  // Sizing helpers
-  const logoSize = collapsed ? 72 : 120;
-
   const menuItems: MenuItem[] = [
     {
       name: 'Dashboard',
@@ -49,7 +45,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       ),
     },
     {
-      name: 'Meus Anúncios',
+      name: 'Meus AnÃºncios',
       href: '/anuncios',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,7 +63,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       ),
     },
     {
-      name: 'Registro',
+      name: 'Certificados',
       href: '/registro',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,16 +72,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       ),
     },
     {
-      name: 'Certificados',
-      href: '/certificados',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Proteção BPP',
+      name: 'ProteÃ§Ã£o BPP',
       href: '/bpp-ml',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,7 +94,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
-        className={`relative overflow-visible
+        className={`relative
           fixed top-0 left-0 z-30 h-screen w-64 bg-white
           border-r border-neutral-200
           transform transition-transform duration-300 ease-in-out
@@ -116,15 +103,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="flex flex-col h-full overflow-visible">
+        <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className={`relative flex items-center justify-center h-20 ${collapsed ? 'px-2' : 'px-6'} border-b border-neutral-200`}>
+          <div className="relative flex items-center justify-center h-20 px-6 border-b border-neutral-200">
             <Image
               src="/logo.png"
               alt="Cyber Registro"
-              width={logoSize}
-              height={logoSize}
-              className={`object-contain transition-all duration-200`}
+              width={120}
+              height={120}
+              className={`object-contain transition-all duration-200 ${collapsed ? 'scale-75' : ''}`}
             />
             <button
               onClick={onClose}
@@ -136,23 +123,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </button>
           </div>
 
-          {/* Menu de navegação */}
-          <nav className={`flex-1 ${collapsed ? 'px-1.5' : 'px-3'} py-4 overflow-y-auto overflow-x-visible`}>
-            <ul className="space-y-1 overflow-visible relative">
+          {/* Menu de navegaÃ¯Â¿Â½Ã¯Â¿Â½Ã‡Å“o */}
+          <nav className={`flex-1 ${collapsed ? 'px-1.5' : 'px-3'} py-4 overflow-y-auto`}>
+            <ul className="space-y-1">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
-                  <li
-                    key={item.name}
-                    className="relative overflow-visible"
-                    onMouseEnter={() => setHoveredItem(item.name)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
+                  <li key={item.name}>
                     <Link
                       href={item.href}
                       onClick={onClose}
                       className={`
-                        relative flex items-center ${collapsed ? 'justify-center gap-0' : 'gap-3'} ${collapsed ? 'px-2.5' : 'px-3'} py-2.5 rounded-lg text-sm min-h-[40px]
+                        flex items-center ${collapsed ? 'justify-center gap-0' : 'gap-3'} px-3 py-2.5 rounded-lg text-sm
                         transition-all duration-200
                         ${
                           isActive
@@ -160,26 +142,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             : 'text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900'
                         }
                       `}
-                      aria-label={item.name}
+                      title={collapsed ? item.name : undefined}
                     >
-                      <span className={`${isActive ? 'text-[#2F4F7F]' : 'text-neutral-500'} transition-transform duration-200 ${collapsed ? 'lg:scale-110' : ''} flex-shrink-0 w-5 h-5 flex items-center justify-center`}>
+                      <span className={isActive ? 'text-[#2F4F7F]' : 'text-neutral-500'}>
                         {item.icon}
                       </span>
-                      {!collapsed && (
-                        <span className="ml-3 whitespace-nowrap">
-                          {item.name}
-                        </span>
-                      )}
-                    </Link>
-                    {collapsed && hoveredItem === item.name && (
-                      <div
-                        className="hidden lg:block absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg border border-neutral-200 bg-white shadow-xl px-3 py-2 text-sm font-medium text-neutral-900 pointer-events-none animate-in fade-in duration-200"
-                        style={{ zIndex: 9999 }}
+                      <span
+                        className={`ml-3 transition-all duration-200 origin-left ${collapsed ? 'lg:opacity-0 lg:scale-95 lg:w-0 lg:overflow-hidden' : 'opacity-100 scale-100'}`}
                       >
                         {item.name}
-                        <span className="pointer-events-none absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-neutral-200 rotate-45" />
-                      </div>
-                    )}
+                      </span>
+                    </Link>
                   </li>
                 );
               })}

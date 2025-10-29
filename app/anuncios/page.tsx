@@ -62,7 +62,7 @@ function MinimalCheckbox({ checked, onToggle, className = '', ariaLabel }: Minim
         className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
         aria-label={ariaLabel}
       />
-      <span className="absolute inset-0 rounded-full border border-neutral-300 bg-white/90 shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-all duration-200 ease-out peer-checked:border-transparent peer-checked:bg-neutral-900" />
+      <span className="absolute inset-0 rounded-full border border-neutral-300 bg-white/90 shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-all duration-200 ease-out peer-checked:border-transparent peer-checked:bg-[#2F4F7F]" />
       <span className="absolute inset-0 rounded-full ring-4 ring-neutral-900/12 opacity-0 transition-opacity duration-200 ease-out peer-checked:opacity-100" />
       <svg
         className="relative h-3 w-3 text-white opacity-0 scale-90 transition-all duration-200 ease-out peer-checked:opacity-100 peer-checked:scale-100"
@@ -170,7 +170,7 @@ function FilterDropdown({
                 }}
                 className={`flex w-full flex-col items-start px-3.5 py-2.5 text-sm font-medium transition-colors duration-150 ${
                   isActive
-                    ? 'bg-neutral-900 text-white shadow-[0_8px_20px_rgba(24,24,27,0.22)]'
+                    ? 'bg-[#2F4F7F] text-white shadow-[0_8px_20px_rgba(24,24,27,0.22)]'
                     : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
                 }`}
               >
@@ -550,7 +550,7 @@ function AnunciosPageContent() {
             <div>
               <button
                 onClick={() => setShowSyncModal(true)}
-                className="group px-8 py-3.5 bg-neutral-900 text-white rounded-xl hover:bg-neutral-800 transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center"
+                className="group px-8 py-3.5 bg-[#2F4F7F] text-white rounded-xl hover:bg-[#253B65] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
@@ -590,7 +590,7 @@ function AnunciosPageContent() {
                     <div className="text-center mt-2">
                       <button
                         onClick={clearFilters}
-                        className="px-4 py-2 text-sm bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+                        className="px-4 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65]"
                       >
                         Limpar filtros
                       </button>
@@ -655,7 +655,7 @@ function AnunciosPageContent() {
                           type="search"
                           value={searchInput}
                           onChange={(event) => handleSearchChange(event.target.value)}
-                          placeholder="Buscar por título ou código MLB (ex: MLB1234 ou 1234)"
+                          placeholder="Buscar por título, código MLB ou SKU"
                           className="w-full rounded-lg border border-neutral-200 bg-white/80 py-2.5 pl-9 pr-3 text-sm text-neutral-700 shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
                         />
                       </label>
@@ -704,7 +704,7 @@ function AnunciosPageContent() {
                         type="button"
                         onClick={handleSendToRegistro}
                         disabled={selectedListings.length === 0}
-                        className="rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                        className="rounded-xl bg-[#2F4F7F] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#253B65] disabled:cursor-not-allowed disabled:bg-neutral-300"
                       >
                         Enviar para Ambiente de Registro
                       </button>
@@ -859,7 +859,7 @@ function AnunciosPageContent() {
                         onClick={() => changePage(num)}
                         className={`px-3 py-2 text-sm rounded-md border ${
                           num === page
-                            ? 'bg-neutral-900 text-white border-neutral-900'
+                            ? 'bg-[#2F4F7F] text-white border-[#2F4F7F]'
                             : 'bg-white text-neutral-900 border-neutral-200 hover:bg-neutral-50'
                         }`}
                       >

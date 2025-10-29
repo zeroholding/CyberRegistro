@@ -45,7 +45,7 @@ export default function MigrationsPage() {
           <button
             onClick={runMigrations}
             disabled={loading}
-            className="w-full px-6 py-3 bg-neutral-900 text-white rounded-xl hover:bg-neutral-800 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full px-6 py-3 bg-[#2F4F7F] text-white rounded-xl hover:bg-[#253B65] transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

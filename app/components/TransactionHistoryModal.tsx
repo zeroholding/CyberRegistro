@@ -130,7 +130,7 @@ export default function TransactionHistoryModal({
             <p className="mt-4 text-sm text-red-600">{error}</p>
             <button
               onClick={fetchTransactions}
-              className="mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors"
+              className="mt-4 px-4 py-2 bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors"
             >
               Tentar novamente
             </button>

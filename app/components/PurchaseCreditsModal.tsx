@@ -277,6 +277,11 @@ export default function PurchaseCreditsModal({
   const subtotal = unitPrice * quantity;
   const total = subtotal;
 
+  // Calcular economia comparando com o preço mais alto (primeiro tier)
+  const highestPrice = PRICING_TIERS[0].price;
+  const priceWithoutDiscount = highestPrice * quantity;
+  const savings = priceWithoutDiscount - total;
+
   const goToStep = (nextStep: Step) => {
     if (transitionTimerRef.current) {
       clearTimeout(transitionTimerRef.current);
@@ -647,7 +652,7 @@ export default function PurchaseCreditsModal({
             return (
               <div
                 key={index}
-                className={`flex items-center justify-between px-3 py-2 rounded-md text-xs ${isActive ? "bg-neutral-900 text-white" : "bg-neutral-50 text-neutral-600"}`}
+                className={`flex items-center justify-between px-3 py-2 rounded-md text-xs ${isActive ? "bg-[#2F4F7F] text-white" : "bg-neutral-50 text-neutral-600"}`}
               >
                 <span>
                   {tier.min} - {tier.max ? tier.max : "mais"} creditos
@@ -700,6 +705,12 @@ export default function PurchaseCreditsModal({
           <span>Total</span>
           <span>R$ {total.toFixed(2)}</span>
         </div>
+        {savings > 0 && (
+          <div className="flex items-center justify-between text-sm text-green-600 font-medium pt-1">
+            <span>✓ Você está economizando</span>
+            <span>R$ {savings.toFixed(2)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -876,7 +887,7 @@ export default function PurchaseCreditsModal({
             />
             <button
               onClick={copyPixCode}
-              className="px-4 py-2 text-sm font-medium text-white bg-neutral-900 rounded-md"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#2F4F7F] rounded-md"
             >
               Copiar
             </button>
@@ -978,7 +989,7 @@ export default function PurchaseCreditsModal({
             </button>
             <button
               onClick={handlePrimaryAction}
-              className="px-4 py-2 text-sm font-semibold text-white bg-neutral-900 rounded-md disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#2F4F7F] rounded-md disabled:opacity-50"
               disabled={isPrimaryDisabled()}
             >
               {getPrimaryButtonLabel()}

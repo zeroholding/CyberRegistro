@@ -19,10 +19,30 @@ interface MLListing {
   last_updated: string;
 }
 
-// Fetch all listings (all relevant statuses) with pagination
+// Small concurrency helper
+async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  if (limit <= 1) {
+    const out: R[] = [];
+    for (let i = 0; i < items.length; i++) out.push(await mapper(items[i], i));
+    return out;
+  }
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) break;
+      results[idx] = await mapper(items[idx], idx);
+    }
+  }
+  const workers = Array(Math.min(limit, items.length)).fill(0).map(() => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+// Fetch all listings (all relevant statuses) with pagination, using controlled concurrency
 async function fetchAllMLListings(mlUserId: string, accessToken: string): Promise<MLListing[]> {
   const limit = 50;
-  const allIds = new Set<string>();
 
   // Known item statuses on Mercado Livre for items API.
   // We include a broad set to ensure we capture everything relevant.
@@ -38,9 +58,10 @@ async function fetchAllMLListings(mlUserId: string, accessToken: string): Promis
     'blocked',
   ];
 
-  // Helper to collect ids for a given status using scan and fallback to offset,
-  // swallowing per-status errors so a single invalid status won't break the sync.
-  const collectIdsForStatus = async (statusParam?: string) => {
+  // Helper to collect ids for a given status using scan and fallback to offset.
+  // Returns a list of item ids (may contain duplicates across statuses)
+  const collectIdsForStatus = async (statusParam?: string): Promise<string[]> => {
+    const ids: string[] = [];
     // Try scan first
     try {
       let scrollId: string | undefined = undefined;
@@ -52,13 +73,13 @@ async function fetchAllMLListings(mlUserId: string, accessToken: string): Promis
         if (!res.ok) throw new Error('scan_not_supported');
         const data = await res.json();
         const batch: string[] = data.results || [];
-        batch.forEach(id => allIds.add(id));
+        ids.push(...batch);
         scrollId = data.scroll_id;
         if (!scrollId || batch.length === 0) break;
         guard++;
         if (guard > 1000) break; // safety
       }
-      return; // success via scan
+      return ids; // success via scan
     } catch (_) {
       // ignore and try offset pagination
     }
@@ -74,7 +95,7 @@ async function fetchAllMLListings(mlUserId: string, accessToken: string): Promis
         if (!res.ok) throw new Error(`error_${res.status}`);
         const data = await res.json();
         const batch: string[] = data.results || [];
-        batch.forEach(id => allIds.add(id));
+        ids.push(...batch);
         if (batch.length < limit) break;
         offset += limit;
         guard++;
@@ -83,27 +104,32 @@ async function fetchAllMLListings(mlUserId: string, accessToken: string): Promis
     } catch (_) {
       // Swallow error for this specific status and continue with others
     }
+    return ids;
   };
 
-  // First collect without status (usually returns active; harmless if duplicates)
-  await collectIdsForStatus(undefined);
-  // Then collect for each explicit status including closed/inactive/etc.
-  for (const status of statuses) {
-    await collectIdsForStatus(status);
-  }
-
-  const itemIds = Array.from(allIds);
+  // Collect ids concurrently across statuses
+  const idGroups = await Promise.all([
+    collectIdsForStatus(undefined),
+    ...statuses.map((s) => collectIdsForStatus(s)),
+  ]);
+  const itemIds = Array.from(new Set(idGroups.flat()));
   if (itemIds.length === 0) return [];
 
-  const listings: MLListing[] = [];
-  const batchSize = 20;
+  // Fetch item details in parallel with limited concurrency
+  const batchSize = 20; // ML items API supports up to ~20 ids per call
+  const detailsConcurrency = 4;
+  const batches: string[][] = [];
   for (let i = 0; i < itemIds.length; i += batchSize) {
-    const batch = itemIds.slice(i, i + batchSize);
+    batches.push(itemIds.slice(i, i + batchSize));
+  }
+
+  const batchResults = await mapWithConcurrency(batches, detailsConcurrency, async (batch) => {
     const ids = batch.join(',');
     const detailsResponse = await fetch(
       `https://api.mercadolibre.com/items?ids=${ids}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+    const listings: MLListing[] = [];
     if (detailsResponse.ok) {
       const detailsData = await detailsResponse.json();
       detailsData.forEach((item: any) => {
@@ -125,9 +151,10 @@ async function fetchAllMLListings(mlUserId: string, accessToken: string): Promis
         }
       });
     }
-  }
+    return listings;
+  });
 
-  return listings;
+  return batchResults.flat();
 }
 
 // Sync listings with streaming progress
@@ -154,7 +181,74 @@ export async function POST(request: NextRequest) {
         const errors: any[] = [];
 
         try {
-          for (const accountId of accountIds) {
+          // Upsert helper in batches to cut DB round-trips dramatically
+          const upsertListingsBatch = async (
+            accountId: number,
+            accountNickname: string | undefined,
+            userIdParam: number,
+            listingsBatch: MLListing[],
+            savedCounterRef: { value: number }
+          ) => {
+            if (listingsBatch.length === 0) return;
+            const valuesPerRow = 14; // number of placeholders per row in VALUES(...)
+            const params: any[] = [];
+            const valuesChunks: string[] = [];
+            for (let i = 0; i < listingsBatch.length; i++) {
+              const l = listingsBatch[i];
+              const base = i * valuesPerRow;
+              valuesChunks.push(
+                `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, CURRENT_TIMESTAMP)`
+              );
+              params.push(
+                userIdParam,
+                accountId,
+                l.id,
+                l.title,
+                l.thumbnail ?? null,
+                l.price ?? null,
+                l.available_quantity ?? null,
+                l.sold_quantity ?? null,
+                l.status ?? null,
+                l.permalink ?? null,
+                l.listing_type_id ?? null,
+                l.condition ?? null,
+                l.date_created ?? null,
+                l.last_updated ?? null,
+              );
+            }
+
+            const query = `INSERT INTO anuncios (
+                user_id, ml_account_id, mlb_code, title, thumbnail,
+                price, available_quantity, sold_quantity, status,
+                permalink, listing_type_id, condition,
+                created_at_ml, updated_at_ml, synced_at
+              ) VALUES ${valuesChunks.join(', ')}
+              ON CONFLICT (ml_account_id, mlb_code)
+              DO UPDATE SET
+                title = EXCLUDED.title,
+                thumbnail = EXCLUDED.thumbnail,
+                price = EXCLUDED.price,
+                available_quantity = EXCLUDED.available_quantity,
+                sold_quantity = EXCLUDED.sold_quantity,
+                status = EXCLUDED.status,
+                permalink = EXCLUDED.permalink,
+                listing_type_id = EXCLUDED.listing_type_id,
+                condition = EXCLUDED.condition,
+                updated_at_ml = EXCLUDED.updated_at_ml,
+                synced_at = CURRENT_TIMESTAMP`;
+
+            await pool.query(query, params);
+            savedCounterRef.value += listingsBatch.length;
+            sendEvent('progress', {
+              accountId,
+              nickname: accountNickname,
+              saved: savedCounterRef.value,
+            });
+          };
+
+          const ACCOUNTS_CONCURRENCY = 3;
+
+          await mapWithConcurrency(accountIds as number[], ACCOUNTS_CONCURRENCY, async (accountId, _idx) => {
             try {
               const accountResult = await pool.query(
                 `SELECT id, user_id, ml_user_id, access_token, refresh_token, expires_at, nickname, token_type, scope
@@ -166,7 +260,7 @@ export async function POST(request: NextRequest) {
               if (accountResult.rows.length === 0) {
                 errors.push({ accountId, error: 'Account not found' });
                 sendEvent('error', { accountId, error: 'Account not found' });
-                continue;
+                return;
               }
 
               let account = accountResult.rows[0] as MercadoLivreAccountRecord;
@@ -177,7 +271,7 @@ export async function POST(request: NextRequest) {
                 const message = refreshError?.message || 'Failed to refresh access token';
                 errors.push({ accountId, nickname: account.nickname, error: message });
                 sendEvent('error', { accountId, nickname: account.nickname, error: message });
-                continue;
+                return;
               }
 
               // Send fetching event
@@ -194,58 +288,12 @@ export async function POST(request: NextRequest) {
               });
               await new Promise(resolve => setTimeout(resolve, 10)); // Small delay to ensure flush
 
-              // Save listings and send progress for this account
-              let savedForAccount = 0;
-              for (let i = 0; i < listings.length; i++) {
-                const listing = listings[i];
-                await pool.query(
-                  `INSERT INTO anuncios (
-                    user_id, ml_account_id, mlb_code, title, thumbnail,
-                    price, available_quantity, sold_quantity, status,
-                    permalink, listing_type_id, condition,
-                    created_at_ml, updated_at_ml, synced_at
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
-                  ON CONFLICT (ml_account_id, mlb_code)
-                  DO UPDATE SET
-                    title = EXCLUDED.title,
-                    thumbnail = EXCLUDED.thumbnail,
-                    price = EXCLUDED.price,
-                    available_quantity = EXCLUDED.available_quantity,
-                    sold_quantity = EXCLUDED.sold_quantity,
-                    status = EXCLUDED.status,
-                    permalink = EXCLUDED.permalink,
-                    listing_type_id = EXCLUDED.listing_type_id,
-                    condition = EXCLUDED.condition,
-                    updated_at_ml = EXCLUDED.updated_at_ml,
-                    synced_at = CURRENT_TIMESTAMP`,
-                  [
-                    userId,
-                    account.id,
-                    listing.id,
-                    listing.title,
-                    listing.thumbnail,
-                    listing.price,
-                    listing.available_quantity,
-                    listing.sold_quantity,
-                    listing.status,
-                    listing.permalink,
-                    listing.listing_type_id,
-                    listing.condition,
-                    listing.date_created,
-                    listing.last_updated,
-                  ]
-                );
-
-                savedForAccount++;
-
-                // Send progress every 5 items or on last item
-                if (savedForAccount % 5 === 0 || i === listings.length - 1) {
-                  sendEvent('progress', {
-                    accountId,
-                    nickname: account.nickname,
-                    saved: savedForAccount
-                  });
-                }
+              // Save listings in batches with fewer DB round-trips
+              const savedForAccount = { value: 0 };
+              const SAVE_BATCH_SIZE = 100;
+              for (let i = 0; i < listings.length; i += SAVE_BATCH_SIZE) {
+                const batch = listings.slice(i, i + SAVE_BATCH_SIZE);
+                await upsertListingsBatch(account.id, account.nickname, Number(userId), batch, savedForAccount);
               }
 
               allListings.push({ accountId, nickname: account.nickname, count: listings.length });
@@ -254,7 +302,7 @@ export async function POST(request: NextRequest) {
               errors.push({ accountId, error: error.message || 'Unknown error' });
               sendEvent('error', { accountId, error: error.message || 'Unknown error' });
             }
-          }
+          });
 
           // Send complete event
           sendEvent('complete', {
@@ -331,17 +379,20 @@ export async function GET(request: NextRequest) {
           a.mlb_code ILIKE $${paramIndex}
           OR a.mlb_code ILIKE $${paramIndex + 1}
           OR a.title ILIKE $${paramIndex + 2}
+          OR COALESCE(a.seller_custom_field, '') ILIKE $${paramIndex + 3}
         )`);
         params.push(`MLB${numericSearch}%`); // Busca exata começando com MLB+números
         params.push(`%${numericSearch}%`); // Busca pelos números em qualquer parte
         params.push(`%${searchTerm}%`); // Busca no título
-        paramIndex += 3;
+        params.push(`%${searchTerm}%`); // Busca no SKU
+        paramIndex += 4;
       } else {
-        // Busca normal em título, mlb_code e permalink
+        // Busca normal em título, mlb_code, permalink e SKU
         whereClauses.push(`(
           a.title ILIKE $${paramIndex}
           OR a.mlb_code ILIKE $${paramIndex}
           OR COALESCE(a.permalink, '') ILIKE $${paramIndex}
+          OR COALESCE(a.seller_custom_field, '') ILIKE $${paramIndex}
         )`);
         params.push(`%${searchTerm}%`);
         paramIndex++;
