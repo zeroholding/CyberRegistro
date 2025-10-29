@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
@@ -230,5 +230,13 @@ function CertificadosPageContent() {
 }
 
 export default function CertificadosPage() {
-  return <CertificadosPageContent/>;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="text-neutral-600">Carregando...</div>
+      </div>
+    }>
+      <CertificadosPageContent/>
+    </Suspense>
+  );
 }
