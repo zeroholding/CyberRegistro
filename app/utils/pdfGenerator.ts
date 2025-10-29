@@ -53,24 +53,52 @@ function wrapText(text: string, maxWidth: number, font: any, fontSize: number): 
 // Função auxiliar para adicionar imagem com tratamento de erro
 async function embedImageSafe(pdfDoc: PDFDocument, imageUrl: string): Promise<any | null> {
   try {
-    // Buscar imagem
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
+    // Se for URL externa, usar proxy do servidor para evitar CORS e WEBP/AVIF
+    const isRemote = /^https?:\/\//i.test(imageUrl);
+    const proxiedUrl = isRemote ? `/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : imageUrl;
+
+    const response = await fetch(proxiedUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Falha ao buscar imagem: ${response.status}`);
+
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    const arrayBuffer = await response.arrayBuffer();
     const imageBytes = new Uint8Array(arrayBuffer);
 
-    // Tentar como JPG primeiro
-    try {
-      return await pdfDoc.embedJpg(imageBytes);
-    } catch {
-      // Se falhar, tentar como PNG
+    // Escolher o método com base no Content-Type quando possível
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+      try { return await pdfDoc.embedJpg(imageBytes); } catch {}
+    }
+    if (contentType.includes('png')) {
+      try { return await pdfDoc.embedPng(imageBytes); } catch {}
+    }
+
+    // Tentativas padrão
+    try { return await pdfDoc.embedJpg(imageBytes); } catch {}
+    try { return await pdfDoc.embedPng(imageBytes); } catch {}
+
+    // Último recurso: converter para PNG via Canvas (lida com WEBP)
+    if (typeof document !== 'undefined' && typeof createImageBitmap !== 'undefined') {
       try {
-        return await pdfDoc.embedPng(imageBytes);
-      } catch {
-        console.error('Erro ao processar imagem');
+        const blob = new Blob([imageBytes.buffer], { type: contentType || 'image/*' });
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(bitmap, 0, 0);
+        const pngBlob: Blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob falhou'))), 'image/png');
+        });
+        const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+        return await pdfDoc.embedPng(pngBytes);
+      } catch (err) {
+        console.error('Falha ao converter imagem para PNG:', err);
         return null;
       }
     }
+
+    return null;
   } catch (error) {
     console.error('Erro ao carregar imagem:', error);
     return null;
