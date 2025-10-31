@@ -640,7 +640,7 @@ export async function generateRegistroCertificatePDF(input: RegistroCertificateI
 
   // Timestamp formatado
   const dateObj = new Date(ts);
-  const timestampFormatted = dateObj.toLocaleString('pt-BR', {
+  const timestampUTC = dateObj.toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -648,7 +648,17 @@ export async function generateRegistroCertificatePDF(input: RegistroCertificateI
     minute: '2-digit',
     second: '2-digit',
     timeZone: 'UTC'
-  }) + ' UTC';
+  });
+  const timestampBRT = dateObj.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Sao_Paulo'
+  });
+  const timestampFormatted = `${timestampUTC} UTC | ${timestampBRT} UTC -3 BRT Time Zone`;
 
   // Rodapé - Reorganizado
   let footerY = M + 88;

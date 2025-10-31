@@ -15,7 +15,9 @@
       "Bash(. ./.env.local)",
       "Bash(set +a)",
       "Bash(node scripts/migrate-anuncios-pdf.js:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

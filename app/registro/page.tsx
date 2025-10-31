@@ -536,6 +536,9 @@ function RegistroPageContent() {
                       {/* Conteúdo do card */}
                       <div className="flex-1 flex flex-col gap-1.5">
                         <div className="text-[10px] text-neutral-500 font-medium">{item.mlbCode}</div>
+                        {item.account?.nickname && (
+                          <div className="text-[10px] text-blue-600 font-medium">@{item.account.nickname}</div>
+                        )}
                         <div className="text-xs font-semibold text-neutral-900 line-clamp-2 flex-1 leading-tight">{item.title}</div>
 
                         {item.registroStatus === 'protegido' && (

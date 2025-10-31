@@ -27,6 +27,9 @@ async function main() {
     // Executar migrations na ordem correta
     await runMigration('create_anuncios.sql');
     await runMigration('alter_anuncios_registro.sql');
+    // Opcional: garantir colunas auxiliares
+    try { await runMigration('alter_anuncios_pdf.sql'); } catch (e) {}
+    try { await runMigration('alter_anuncios_sku.sql'); } catch (e) {}
 
     console.log('\n✨ Todas as migrations foram executadas com sucesso!');
   } catch (error) {

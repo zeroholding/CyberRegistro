@@ -10,6 +10,7 @@ import { generateAnuncioPDF } from '../utils/pdfGenerator';
 interface Listing {
   id: number;
   mlb_code: string;
+  sku?: string | null;
   title: string;
   thumbnail: string;
   price: number;
@@ -254,14 +255,13 @@ function AnunciosPageContent() {
         if (searchTerm) qs.set('search', searchTerm);
         if (statusFilter) qs.set('status', statusFilter);
         if (accountFilter) qs.set('accountId', accountFilter);
-        const response = await fetch(`/api/mercadolivre/sync-listings?${qs.toString()}`);
-        const data = await response.json();
-        if (response.ok) {
+        const response = await fetch(`/api/mercadolivre/listings?${qs.toString()}`);
+        let data: any = null; let fallbackText = ''; try { data = await response.json(); } catch (_) { try { fallbackText = await response.text(); } catch {} }
+        if (!response.ok) { throw new Error(`HTTP ${response.status}${fallbackText ? `: ${fallbackText}` : ''}` ); } 
           const fetchedListings: Listing[] = data.listings || [];
           setListings(fetchedListings);
           setTotal(data.total || 0);
           setLatestSyncedAt(data.latestSyncedAt || null);
-        }
       } catch (error) {
         console.error('Erro ao carregar anúncios (paginado):', error);
       } finally {
@@ -319,10 +319,9 @@ function AnunciosPageContent() {
     const fetchAccounts = async () => {
       try {
         const response = await fetch(`/api/mercadolivre/accounts?userId=${usuario.id}`);
-        const data = await response.json();
-        if (response.ok) {
+        let data: any = null; let fallbackText = ''; try { data = await response.json(); } catch (_) { try { fallbackText = await response.text(); } catch {} }
+        if (!response.ok) { throw new Error(`HTTP ${response.status}${fallbackText ? `: ${fallbackText}` : ''}` ); } 
           setAccounts(data.accounts || []);
-        }
       } catch (error) {
         console.error('Erro ao carregar contas do Mercado Livre:', error);
       }

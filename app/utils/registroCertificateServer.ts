@@ -769,16 +769,25 @@ export async function generateRegistroCertificatePDFServer(
   const brand2 = 'CNPJ: 51.670.332/0001-14';
 
   const dateObj = new Date(ts);
-  const timestampFormatted =
-    dateObj.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'UTC',
-    }) + ' UTC';
+  const timestampUTC = dateObj.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'UTC',
+  });
+  const timestampBRT = dateObj.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  });
+  const timestampFormatted = `${timestampUTC} UTC | ${timestampBRT} UTC -3 BRT Time Zone`;
 
   let footerY = M + 88;
 

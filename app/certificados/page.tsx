@@ -205,6 +205,9 @@ function CertificadosPageContent() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-neutral-900 truncate" title={it.title}>{it.title}</div>
                       <div className="text-xs text-neutral-500 mt-0.5">{it.mlb_code}</div>
+                      {it.account_nickname && (
+                        <div className="text-xs text-blue-600 font-medium mt-0.5">@{it.account_nickname}</div>
+                      )}
                       <div className="flex items-center gap-2 mt-2">
                         <div className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs font-medium flex items-center gap-1">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>

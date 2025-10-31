@@ -291,6 +291,14 @@ export default function Dashboard() {
                     </div>
                     <p className="text-3xl font-semibold text-neutral-900">{credits}</p>
                     <p className="text-xs text-neutral-500 mt-2">Disponíveis</p>
+                    <div className="mt-4">
+                      <button
+                        onClick={() => setIsPurchaseModalOpen(true)}
+                        className="w-full px-4 py-2 bg-[#2F4F7F] text-white text-sm font-medium rounded-lg hover:bg-[#253B65] transition-colors"
+                      >
+                        Adicionar Créditos
+                      </button>
+                    </div>
                   </div>
 
                   {/* Card Registros */}
