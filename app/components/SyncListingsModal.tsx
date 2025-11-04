@@ -93,119 +93,160 @@ export default function SyncListingsModal({ isOpen, onClose, userId, onSyncCompl
 
     try {
       setSyncing(true);
+      const accountIds = Array.from(selectedAccounts);
+      const allSynced: any[] = [];
+      const allErrors: any[] = [];
 
-      const response = await fetch('/api/mercadolivre/sync-listings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId,
-          accountIds: Array.from(selectedAccounts)
-        })
-      });
+      // Sincronizar uma conta por vez para evitar timeout no Vercel
+      for (const accountId of accountIds) {
+        try {
+          const response = await fetch('/api/mercadolivre/sync-listings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId,
+              accountIds: [accountId] // Apenas uma conta por vez
+            })
+          });
 
-      if (!response.ok) {
-        alert('Erro ao sincronizar');
-        setSyncing(false);
-        return;
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        alert('Erro ao sincronizar: streaming não suportado');
-        setSyncing(false);
-        return;
-      }
-
-      console.log('Streaming iniciado, aguardando eventos...');
-      let buffer = '';
-      let currentEventType = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          console.log('Stream finalizado');
-          break;
-        }
-
-        const chunk = decoder.decode(value, { stream: true });
-        console.log('Chunk recebido:', chunk);
-        buffer += chunk;
-        const lines = buffer.split('\n\n');
-
-        // Keep the last incomplete chunk in buffer
-        buffer = lines.pop() || '';
-
-        for (const chunk of lines) {
-          if (!chunk.trim()) continue;
-
-          const eventLines = chunk.split('\n');
-          let eventData = '';
-
-          for (const line of eventLines) {
-            if (line.startsWith('event:')) {
-              currentEventType = line.substring(6).trim();
-            } else if (line.startsWith('data:')) {
-              eventData = line.substring(5).trim();
-            }
+          if (!response.ok) {
+            const accountInfo = accounts.find(acc => acc.id === accountId);
+            const errorMsg = `Erro HTTP ${response.status}`;
+            allErrors.push({
+              accountId,
+              nickname: accountInfo?.nickname,
+              error: errorMsg
+            });
+            updateAccountProgress(accountId, {
+              status: 'error',
+              error: errorMsg
+            });
+            continue;
           }
 
-          if (eventData) {
-            try {
-              const data = JSON.parse(eventData);
-              console.log('SSE Event:', currentEventType, data);
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
 
-              if (currentEventType === 'fetching') {
-                updateAccountProgress(data.accountId, {
-                  status: 'fetching',
-                  totalListings: 0,
-                  savedListings: 0
-                });
-              } else if (currentEventType === 'found') {
-                updateAccountProgress(data.accountId, {
-                  status: 'saving',
-                  totalListings: data.count,
-                  savedListings: 0
-                });
-              } else if (currentEventType === 'progress') {
-                updateAccountProgress(data.accountId, {
-                  savedListings: data.saved
-                });
-              } else if (currentEventType === 'complete') {
-                // Mark all synced accounts as completed
-                data.synced?.forEach((item: any) => {
-                  updateAccountProgress(item.accountId, {
-                    status: 'completed',
-                    totalListings: item.count,
-                    savedListings: item.count
-                  });
-                });
+          if (!reader) {
+            const accountInfo = accounts.find(acc => acc.id === accountId);
+            const errorMsg = 'Streaming não suportado';
+            allErrors.push({
+              accountId,
+              nickname: accountInfo?.nickname,
+              error: errorMsg
+            });
+            updateAccountProgress(accountId, {
+              status: 'error',
+              error: errorMsg
+            });
+            continue;
+          }
 
-                setSyncResult(data);
-                setTimeout(() => {
-                  onSyncComplete();
-                  onClose();
-                }, 2000);
-              } else if (currentEventType === 'error') {
-                if (data.accountId) {
-                  updateAccountProgress(data.accountId, {
-                    status: 'error',
-                    error: data.error
-                  });
-                } else {
-                  alert('Erro ao sincronizar: ' + data.error);
+          let buffer = '';
+          let currentEventType = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              console.log('Stream finalizado para conta', accountId);
+              break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+            const lines = buffer.split('\n\n');
+
+            // Keep the last incomplete chunk in buffer
+            buffer = lines.pop() || '';
+
+            for (const chunk of lines) {
+              if (!chunk.trim()) continue;
+
+              const eventLines = chunk.split('\n');
+              let eventData = '';
+
+              for (const line of eventLines) {
+                if (line.startsWith('event:')) {
+                  currentEventType = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                  eventData = line.substring(5).trim();
                 }
               }
-            } catch (e) {
-              console.error('Erro ao parsear evento:', e, eventData);
+
+              if (eventData) {
+                try {
+                  const data = JSON.parse(eventData);
+
+                  if (currentEventType === 'fetching') {
+                    updateAccountProgress(data.accountId, {
+                      status: 'fetching',
+                      totalListings: 0,
+                      savedListings: 0
+                    });
+                  } else if (currentEventType === 'found') {
+                    updateAccountProgress(data.accountId, {
+                      status: 'saving',
+                      totalListings: data.count,
+                      savedListings: 0
+                    });
+                  } else if (currentEventType === 'progress') {
+                    updateAccountProgress(data.accountId, {
+                      savedListings: data.saved
+                    });
+                  } else if (currentEventType === 'complete') {
+                    // Mark all synced accounts as completed
+                    data.synced?.forEach((item: any) => {
+                      updateAccountProgress(item.accountId, {
+                        status: 'completed',
+                        totalListings: item.count,
+                        savedListings: item.count
+                      });
+                      allSynced.push(item);
+                    });
+                  } else if (currentEventType === 'error') {
+                    if (data.accountId) {
+                      updateAccountProgress(data.accountId, {
+                        status: 'error',
+                        error: data.error
+                      });
+                      allErrors.push(data);
+                    }
+                  }
+                } catch (e) {
+                  console.error('Erro ao parsear evento:', e, eventData);
+                }
+              }
             }
           }
+        } catch (error: any) {
+          console.error(`Erro ao sincronizar conta ${accountId}:`, error);
+          const accountInfo = accounts.find(acc => acc.id === accountId);
+          allErrors.push({
+            accountId,
+            nickname: accountInfo?.nickname,
+            error: error.message || 'Erro desconhecido'
+          });
+          updateAccountProgress(accountId, {
+            status: 'error',
+            error: error.message || 'Erro desconhecido'
+          });
         }
       }
+
+      // Mostrar resultado final
+      setSyncResult({
+        success: true,
+        synced: allSynced,
+        errors: allErrors.length > 0 ? allErrors : undefined
+      });
+
+      setTimeout(() => {
+        onSyncComplete();
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('Erro ao sincronizar:', error);
       alert('Erro ao sincronizar anúncios');
