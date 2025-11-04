@@ -17,7 +17,8 @@
       "Bash(node scripts/migrate-anuncios-pdf.js:*)",
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(node scripts/migrate-anuncios-sku.js:*)"
     ],
     "deny": [],
     "ask": []
