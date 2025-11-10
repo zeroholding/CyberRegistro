@@ -1,17 +1,7 @@
-const sanitizeApiKey = (key: string | undefined) => {
-  if (!key) return "";
-  const trimmed = key.trim();
-  if (!trimmed) return "";
-  return trimmed.replace(/^['"]|['"]$/g, "");
-};
-
-// Usar a chave de API das variáveis de ambiente
-const ASAAS_API_KEY = sanitizeApiKey(process.env.ASAAS_API_KEY);
-const ASAAS_ENV = process.env.ASAAS_ENV || "sandbox";
-const ASAAS_BASE_URL =
-  ASAAS_ENV === "sandbox"
-    ? "https://sandbox.asaas.com/api/v3"
-    : "https://www.asaas.com/api/v3";
+// Configuração direta da API key (sandbox)
+const ASAAS_API_KEY = "$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjkxZDM2NjNmLWMzMTAtNGVjZi1iZTZlLWRkMWE3YjYzMzMwNTo6JGFhY2hfNTQxMTZjOWEtMjgwNS00MDUxLTkxZWMtNGQyMDE3NmRkOWFm";
+const ASAAS_ENV = "sandbox";
+const ASAAS_BASE_URL = "https://sandbox.asaas.com/api/v3";
 
 interface CreateCustomerData {
   name: string;
@@ -105,16 +95,20 @@ class AsaasService {
 
     try {
       const response = await fetch(url, options);
-      const responseData = await response.json();
 
       if (!response.ok) {
-        console.error("Erro na requisicao Asaas:", responseData);
-        throw new Error(
-          responseData.errors?.[0]?.description ||
-            "Erro ao comunicar com Asaas",
-        );
+        let errorMessage = "Erro ao comunicar com Asaas";
+        try {
+          const responseData = await response.json();
+          console.error("Erro na requisicao Asaas:", responseData);
+          errorMessage = responseData.errors?.[0]?.description || errorMessage;
+        } catch (parseError) {
+          console.error("Erro ao fazer parse da resposta de erro:", parseError);
+        }
+        throw new Error(errorMessage);
       }
 
+      const responseData = await response.json();
       return responseData;
     } catch (error) {
       console.error("Erro ao fazer requisicao para Asaas:", error);

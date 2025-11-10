@@ -28,11 +28,11 @@ export default function Home() {
 
   // Mesma tabela de precos do modal (por unidade)
   const pricingTiers = [
-    { originalPrice: 49.9, price: 49.9 }, // 1-10
-    { originalPrice: 49.9, price: 47.9 }, // 11-30
-    { originalPrice: 49.9, price: 45.9 }, // 31-50
-    { originalPrice: 49.9, price: 42.9 }, // 51-100
-    { originalPrice: 49.9, price: 39.9 }, // 101+
+    { originalPrice: 49.9, price: 39.9 }, // 1-10
+    { originalPrice: 49.9, price: 37.9 }, // 11-30
+    { originalPrice: 49.9, price: 35.9 }, // 31-50
+    { originalPrice: 49.9, price: 32.9 }, // 51-100
+    { originalPrice: 49.9, price: 29.9 }, // 101+
   ];
 
   const tierBounds = [

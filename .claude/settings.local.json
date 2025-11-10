@@ -18,7 +18,8 @@
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
       "Bash(timeout:*)",
-      "Bash(node scripts/migrate-anuncios-sku.js:*)"
+      "Bash(node scripts/migrate-anuncios-sku.js:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

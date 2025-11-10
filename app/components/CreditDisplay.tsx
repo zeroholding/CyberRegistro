@@ -20,9 +20,14 @@ export default function CreditDisplay({ credits = 0, onCreditsUpdated }: CreditD
   useEffect(() => {
     // Carregar o arquivo JSON do Lottie
     fetch('/Coin.json')
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => setAnimationData(data))
-      .catch((error) => console.error('Erro ao carregar animaÃ§Ã£o:', error));
+      .catch((error) => console.error('Erro ao carregar animação:', error));
   }, []);
 
   // Fechar dropdown ao clicar fora

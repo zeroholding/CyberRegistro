@@ -14,11 +14,11 @@ type ActiveTab = "pix" | "credit-card";
 type Step = 1 | 2 | 3;
 
 const PRICING_TIERS = [
-  { min: 1, max: 10, price: 49.9 },
-  { min: 11, max: 30, price: 47.9 },
-  { min: 31, max: 50, price: 45.9 },
-  { min: 51, max: 100, price: 42.9 },
-  { min: 101, max: null, price: 39.9 },
+  { min: 1, max: 10, price: 39.9 },
+  { min: 11, max: 30, price: 37.9 },
+  { min: 31, max: 50, price: 35.9 },
+  { min: 51, max: 100, price: 32.9 },
+  { min: 101, max: null, price: 29.9 },
 ];
 
 const CONFIRMED_STATUSES = new Set([
