@@ -1,5 +1,5 @@
 // Configuração direta da API key (produção)
-const ASAAS_API_KEY = "$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjlhYWJlZWI4LWFiZDctNGFjMy1hOTU4LWIzYjM4OTM3MmRiNDo6JGFhY2hfNTg3OWI0MDItZjY0Yy00ZGEwLTljZWYtODFhZDMxZjkxOWVj";
+const ASAAS_API_KEY = "$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjhjZGUzMzhjLTliZjItNGE3Yi1hZDMxLTgzZGI1ZGRlMmRhZjo6JGFhY2hfNjU1NzQ2MjUtNjZkMC00MzYzLThiNTAtYzA5YTJhMjIyZGQ4";
 const ASAAS_ENV = "production";
 const ASAAS_BASE_URL = "https://www.asaas.com/api/v3";
 
@@ -26,6 +26,7 @@ interface CreateCreditCardPaymentData {
   dueDate: string;
   description?: string;
   externalReference?: string;
+  remoteIp?: string;
   creditCard: {
     holderName: string;
     number: string;

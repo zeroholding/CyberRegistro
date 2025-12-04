@@ -175,6 +175,7 @@ export default function PurchaseCreditsModal({
   const [cupomData, setCupomData] = useState<any>(null);
   const [cupomDiscount, setCupomDiscount] = useState<number>(0);
   const [isValidatingCupom, setIsValidatingCupom] = useState<boolean>(false);
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
   const persistValue = useCallback((key: string, value: string) => {
     if (typeof window === "undefined") return;
@@ -314,7 +315,11 @@ export default function PurchaseCreditsModal({
     }
     setIsTransitioning(false);
     setIsLoading(false);
+    setIsSuccess(false);
     setStep(1);
+    setCupomCode("");
+    setCupomData(null);
+    setCupomDiscount(0);
     resetPixData();
   };
 
@@ -522,9 +527,12 @@ export default function PurchaseCreditsModal({
           });
 
           const data = await response.json();
+          console.log("Payment response status:", response.status);
+          console.log("Payment response data:", data);
 
           if (!response.ok) {
-            throw new Error(data.error || "Erro ao processar pagamento");
+            const errorMessage = data.details || data.error || "Erro ao processar pagamento";
+            throw new Error(errorMessage);
           }
 
           completionTriggeredRef.current = null;
@@ -624,15 +632,17 @@ export default function PurchaseCreditsModal({
           });
 
           const data = await response.json();
+          console.log("Payment response status:", response.status);
+          console.log("Payment response data:", data);
 
           if (!response.ok) {
-            throw new Error(data.error || "Erro ao processar pagamento");
+            const errorMessage = data.details || data.error || "Erro ao processar pagamento";
+            throw new Error(errorMessage);
           }
 
-          showToast("Pagamento processado com sucesso!", "success");
+          // showToast("Pagamento processado com sucesso!", "success");
           await refreshCredits();
-          resetFormState();
-          onClose();
+          setIsSuccess(true);
           setIsLoading(false);
           return;
         }
@@ -1065,7 +1075,31 @@ export default function PurchaseCreditsModal({
     );
   };
 
+  const renderSuccess = () => (
+    <div className="flex flex-col items-center justify-center gap-4 py-8 animate-fade-in">
+      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+        <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <div className="text-center space-y-2">
+        <h3 className="text-lg font-semibold text-neutral-900">Pagamento realizado com sucesso!</h3>
+        <p className="text-sm text-neutral-600">
+          Seus créditos foram adicionados à sua conta.
+        </p>
+      </div>
+    </div>
+  );
+
   const renderStepContent = () => {
+    if (isLoading) {
+      return <LoadingIndicator label="Processando pagamento..." />;
+    }
+
+    if (isSuccess) {
+      return renderSuccess();
+    }
+
     if (isTransitioning) {
       return <LoadingIndicator label="Carregando..." />;
     }
@@ -1133,34 +1167,45 @@ export default function PurchaseCreditsModal({
       title="Comprar creditos"
       maxWidth="md"
       footer={
-        <div className="flex items-center justify-between">
-          {((activeTab === "pix" && step > 1) ||
-            (activeTab === "credit-card" && step === 2)) && (
-            <button
-              onClick={handleBack}
-              className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900"
-              disabled={isLoading}
-            >
-              Voltar
-            </button>
-          )}
-          <div className="ml-auto flex gap-2">
+        isSuccess ? (
+          <div className="flex justify-end w-full">
             <button
               onClick={handleClose}
-              className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900"
-              disabled={isLoading}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#2F4F7F] rounded-md"
             >
-              Cancelar
-            </button>
-            <button
-              onClick={handlePrimaryAction}
-              className="px-4 py-2 text-sm font-semibold text-white bg-[#2F4F7F] rounded-md disabled:opacity-50"
-              disabled={isPrimaryDisabled()}
-            >
-              {getPrimaryButtonLabel()}
+              Fechar
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            {((activeTab === "pix" && step > 1) ||
+              (activeTab === "credit-card" && step === 2)) && (
+              <button
+                onClick={handleBack}
+                className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900"
+                disabled={isLoading}
+              >
+                Voltar
+              </button>
+            )}
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={handleClose}
+                className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900"
+                disabled={isLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handlePrimaryAction}
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#2F4F7F] rounded-md disabled:opacity-50"
+                disabled={isPrimaryDisabled()}
+              >
+                {getPrimaryButtonLabel()}
+              </button>
+            </div>
+          </div>
+        )
       }
     >
       <div className="flex gap-2 mb-4 p-1 bg-neutral-100 rounded-lg">

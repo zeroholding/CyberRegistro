@@ -98,6 +98,10 @@ export async function POST(request: NextRequest) {
     const dueDate = new Date();
     const dueDateString = dueDate.toISOString().split("T")[0];
 
+    // Obter IP do cliente
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const remoteIp = forwardedFor ? forwardedFor.split(",")[0].trim() : "127.0.0.1";
+
     // Criar cobrança com cartão de crédito
     const externalRef = cupomId
       ? `user_${decoded.id}_${Date.now()}_qty${quantity}_cupom${cupomId}`
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
       dueDate: dueDateString,
       description: `Compra de ${quantity} credito(s) - CyberRegistro`,
       externalReference: externalRef,
+      remoteIp,
       creditCard: {
         holderName: creditCard.holderName,
         number: creditCard.number,
@@ -121,7 +126,7 @@ export async function POST(request: NextRequest) {
         name: customerName || decoded.nome || "Cliente",
         email: customerEmail || decoded.email,
         cpfCnpj: sanitizedCpf,
-        postalCode: "00000000", // Você pode adicionar campos para coletar isso do usuário
+        postalCode: "01001000", // CEP genérico válido para evitar erro de validação
         addressNumber: "SN",
         phone: sanitizedPhone,
       },
@@ -156,11 +161,21 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Erro ao criar pagamento com cartão:", error);
+    console.error("Erro detalhado ao criar pagamento com cartão:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
+    let details = "Erro desconhecido";
+    if (error instanceof Error) {
+      details = error.message;
+    } else if (typeof error === "string") {
+      details = error;
+    } else if (typeof error === "object" && error !== null) {
+      details = JSON.stringify(error);
+    }
+
     return NextResponse.json(
       {
-        error: "Erro ao processar pagamento",
-        details: error instanceof Error ? error.message : "Erro desconhecido",
+        error: "Falha no processamento do pagamento",
+        details: details,
       },
       { status: 500 },
     );
