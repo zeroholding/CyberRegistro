@@ -54,7 +54,8 @@ const isValidCnpj = (digits: string) => {
 };
 
 // --- Page Component ---
-export default function CheckoutPage() {
+// --- Page Component (Content with SearchParams) ---
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
@@ -407,5 +408,20 @@ export default function CheckoutPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// --- Main Page (Wrapped in Suspense) ---
+import { Suspense } from "react";
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+    }>
+        <CheckoutContent />
+    </Suspense>
   );
 }
