@@ -541,7 +541,7 @@ export default function Home() {
               </div>
 
               <Link
-                href="/cadastro"
+                href={`/checkout?quantity=${quantity}`}
                 className="block w-full bg-[#2C3E50] text-white text-center py-4 rounded-lg text-lg font-semibold hover:bg-[#1a252f] transition-colors"
               >
                 Continuar

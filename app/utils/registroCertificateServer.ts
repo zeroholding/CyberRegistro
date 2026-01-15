@@ -4,7 +4,7 @@
  * Usado pelas APIs para armazenar o PDF no banco de dados
  */
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 export interface RegistroCertificateInput {
   title: string;
@@ -27,29 +27,37 @@ export interface RegistroCertificateInput {
 }
 
 function safe(value: string | null | undefined): string {
-  return (value ?? '').toString().trim();
+  return (value ?? "").toString().trim();
 }
 
 function formatCpfCnpj(raw?: string | null): string {
-  const digits = (raw || '').replace(/\D/g, '');
-  if (digits.length === 11) return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  if (digits.length === 14) return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-  return raw ?? '—';
+  const digits = (raw || "").replace(/\D/g, "");
+  if (digits.length === 11)
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  if (digits.length === 14)
+    return digits.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5"
+    );
+  return raw ?? "—";
 }
 
 function sanitizeWinAnsi(input: string): string {
-  if (!input) return '';
+  if (!input) return "";
   return input
-    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015]/g, '-')
-    .replace(/[\u2212]/g, '-')
-    .replace(/[\u00A0]/g, ' ')
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015]/g, "-")
+    .replace(/[\u2212]/g, "-")
+    .replace(/[\u00A0]/g, " ")
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, "");
 }
 
 function measureWords(font: any, size: number, words: string[]) {
-  return words.map((w) => ({ text: w, width: font.widthOfTextAtSize(w, size) }));
+  return words.map((w) => ({
+    text: w,
+    width: font.widthOfTextAtSize(w, size),
+  }));
 }
 
 function drawJustifiedLine(
@@ -65,7 +73,7 @@ function drawJustifiedLine(
 ) {
   const totalWordsWidth = words.reduce((s, w) => s + w.width, 0);
   const gaps = Math.max(0, words.length - 1);
-  let gapWidth = font.widthOfTextAtSize(' ', size);
+  let gapWidth = font.widthOfTextAtSize(" ", size);
   if (justify && gaps > 0) {
     const free = Math.max(0, maxWidth - totalWordsWidth);
     gapWidth = free / gaps;
@@ -90,11 +98,11 @@ function drawJustifiedParagraph(
   color: any,
   lineGap = 3
 ) {
-  const clean = sanitizeWinAnsi(text).replace(/\s+/g, ' ').trim();
-  const words = clean.length ? clean.split(' ') : [];
-  if (words.length === 0) return { y: topY, remaining: '' };
+  const clean = sanitizeWinAnsi(text).replace(/\s+/g, " ").trim();
+  const words = clean.length ? clean.split(" ") : [];
+  if (words.length === 0) return { y: topY, remaining: "" };
   const measured = measureWords(font, size, words);
-  const spaceWidth = font.widthOfTextAtSize(' ', size);
+  const spaceWidth = font.widthOfTextAtSize(" ", size);
   let y = topY;
   let line: { text: string; width: number }[] = [];
   let lineWidth = 0;
@@ -121,11 +129,17 @@ function drawJustifiedParagraph(
     y -= size + lineGap;
   }
 
-  const remaining = measured.slice(index).map((m) => m.text).join(' ');
+  const remaining = measured
+    .slice(index)
+    .map((m) => m.text)
+    .join(" ");
   return { y, remaining };
 }
 
-async function embedRemoteImage(pdfDoc: PDFDocument, url: string): Promise<any | null> {
+async function embedRemoteImage(
+  pdfDoc: PDFDocument,
+  url: string
+): Promise<any | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
@@ -148,20 +162,20 @@ async function embedRemoteImage(pdfDoc: PDFDocument, url: string): Promise<any |
 async function sha256Hex(str: string): Promise<string | null> {
   try {
     const enc = new TextEncoder().encode(str);
-    const hash = await crypto.subtle.digest('SHA-256', enc);
+    const hash = await crypto.subtle.digest("SHA-256", enc);
     return Array.from(new Uint8Array(hash))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   } catch {
     return null;
   }
 }
 
 async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
+  const hash = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
   return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -180,7 +194,10 @@ export async function generateRegistroCertificatePDFServer(
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // Carregar logo - usar fetch absoluto para funcionar no servidor
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cyberregistro.vercel.app';
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://www.cyberregistro.com.br";
   const logoUrl = `${baseUrl}/cyber.png`;
   const logoResponse = await fetch(logoUrl);
   const logoBytes = await logoResponse.arrayBuffer();
@@ -333,7 +350,7 @@ export async function generateRegistroCertificatePDFServer(
     borderWidth: 2,
   });
 
-  page.drawText('©', {
+  page.drawText("©", {
     x: sealX + 20,
     y: sealY + 8,
     size: 26,
@@ -344,7 +361,7 @@ export async function generateRegistroCertificatePDFServer(
   // Título
   const titleX = M + logoSize + 20;
   const titleBaseY = logoY + logoSize / 2 + 5;
-  page.drawText('CERTIFICADO DE REGISTRO', {
+  page.drawText("CERTIFICADO DE REGISTRO", {
     x: titleX,
     y: titleBaseY,
     size: 20,
@@ -352,7 +369,7 @@ export async function generateRegistroCertificatePDFServer(
     color: white,
   });
 
-  page.drawText('Declaração de Autoria e Propriedade Intelectual', {
+  page.drawText("Declaração de Autoria e Propriedade Intelectual", {
     x: titleX,
     y: titleBaseY - 20,
     size: 9,
@@ -484,7 +501,7 @@ export async function generateRegistroCertificatePDFServer(
   y -= 32;
 
   // Autor da Obra
-  page.drawText('Autor da Obra', {
+  page.drawText("Autor da Obra", {
     x: cardX + 15,
     y,
     size: 10,
@@ -494,7 +511,7 @@ export async function generateRegistroCertificatePDFServer(
   const autorCpf = input.autorCpfCnpj ?? input.usuario?.cpfCnpj;
   if (autorCpf) {
     const cpfFormatted = formatCpfCnpj(autorCpf);
-    const cpfLabel = 'CPF/CNPJ: ' + cpfFormatted;
+    const cpfLabel = "CPF/CNPJ: " + cpfFormatted;
     const cpfWidth = font.widthOfTextAtSize(cpfLabel, 10);
     page.drawText(cpfLabel, {
       x: cardX + cardW - cpfWidth - 15,
@@ -508,9 +525,11 @@ export async function generateRegistroCertificatePDFServer(
   const autorNomeValue =
     sanitizeWinAnsi(safe(input.autorNome)) ||
     sanitizeWinAnsi(safe(input.usuario?.nome)) ||
-    `${safe(input.account?.firstName)} ${safe(input.account?.lastName)}`.trim() ||
+    `${safe(input.account?.firstName)} ${safe(
+      input.account?.lastName
+    )}`.trim() ||
     sanitizeWinAnsi(safe(input.account?.nickname)) ||
-    '-';
+    "-";
   page.drawText(autorNomeValue, {
     x: cardX + 15,
     y,
@@ -521,7 +540,7 @@ export async function generateRegistroCertificatePDFServer(
   y -= 22;
 
   // Titular dos Direitos
-  page.drawText('Titular dos Direitos', {
+  page.drawText("Titular dos Direitos", {
     x: cardX + 15,
     y,
     size: 10,
@@ -531,7 +550,7 @@ export async function generateRegistroCertificatePDFServer(
   const titularCpf = input.titularCpfCnpj ?? input.usuario?.cpfCnpj;
   if (titularCpf) {
     const cpfFormatted = formatCpfCnpj(titularCpf);
-    const cpfLabel = 'CPF/CNPJ: ' + cpfFormatted;
+    const cpfLabel = "CPF/CNPJ: " + cpfFormatted;
     const cpfWidth = font.widthOfTextAtSize(cpfLabel, 10);
     page.drawText(cpfLabel, {
       x: cardX + cardW - cpfWidth - 15,
@@ -542,7 +561,8 @@ export async function generateRegistroCertificatePDFServer(
     });
   }
   y -= 15;
-  const titularNomeValue = sanitizeWinAnsi(safe(input.titularNome)) || autorNomeValue;
+  const titularNomeValue =
+    sanitizeWinAnsi(safe(input.titularNome)) || autorNomeValue;
   page.drawText(titularNomeValue, {
     x: cardX + 15,
     y,
@@ -553,7 +573,7 @@ export async function generateRegistroCertificatePDFServer(
   y -= 22;
 
   // Declaração
-  page.drawText('Declaração', {
+  page.drawText("Declaração", {
     x: cardX + 15,
     y,
     size: 10,
@@ -584,9 +604,13 @@ export async function generateRegistroCertificatePDFServer(
   const payloadStr = `${input.mlbCode}|${autorNomeValue}|${titularNomeValue}|${ts}`;
   const hash = await sha256Hex(payloadStr);
   const verifyUrl = hash
-    ? `https://cyberregistro.com/verify?mlb=${encodeURIComponent(input.mlbCode)}&ts=${encodeURIComponent(ts)}&h=${hash}`
-    : input.permalink || 'https://cyberregistro.com';
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(verifyUrl)}`;
+    ? `https://cyberregistro.com/verify?mlb=${encodeURIComponent(
+        input.mlbCode
+      )}&ts=${encodeURIComponent(ts)}&h=${hash}`
+    : input.permalink || "https://cyberregistro.com";
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(
+    verifyUrl
+  )}`;
   const qr = await embedRemoteImage(pdfDoc, qrUrl);
 
   // Texto legal
@@ -595,10 +619,21 @@ export async function generateRegistroCertificatePDFServer(
   const legalYStart = cardY - cardH - 12 - qrAndLegalOffset;
   const legalMaxW = WIDTH - M * 2 - (qrAreaSize + 35);
   const textoLegal = sanitizeWinAnsi(
-    'O presente certificado atesta, por meio das tecnologias de hashcode (SHA-256), carimbo de tempo (TimeStamping em padrao UTC fornecido pelo BIPM - Bureau International des Poids et Mesures) e assinatura digital, que a pessoa indicada neste documento declarou-se autora da obra aqui mencionada. Este comprovante esta em conformidade com a Convencao de Berna (INTL), Convencao do Metro (INTL), Lei 9.610 (BR), WIPO Copyright Treaty (INTL), US Copyright Law (US), UCC Geneva (INTL), bem como demais legislacoes aplicaveis ao Direito Autoral dos paises signatarios dos referidos tratados. Qualquer divergencia ou inconsistencia nos dados fornecidos e de inteira responsabilidade do declarante, podendo configurar crime em determinados paises. Ressalta-se que a Cyber Registro nao realiza upload dos arquivos originais, sendo responsabilidade exclusiva do usuario preservar a integridade da obra (arquivo), que devera ser apresentada, quando necessario, juntamente com este certificado, para fins de comprovacao do conteudo efetivamente registrado.'
+    "O presente certificado atesta, por meio das tecnologias de hashcode (SHA-256), carimbo de tempo (TimeStamping em padrao UTC fornecido pelo BIPM - Bureau International des Poids et Mesures) e assinatura digital, que a pessoa indicada neste documento declarou-se autora da obra aqui mencionada. Este comprovante esta em conformidade com a Convencao de Berna (INTL), Convencao do Metro (INTL), Lei 9.610 (BR), WIPO Copyright Treaty (INTL), US Copyright Law (US), UCC Geneva (INTL), bem como demais legislacoes aplicaveis ao Direito Autoral dos paises signatarios dos referidos tratados. Qualquer divergencia ou inconsistencia nos dados fornecidos e de inteira responsabilidade do declarante, podendo configurar crime em determinados paises. Ressalta-se que a Cyber Registro nao realiza upload dos arquivos originais, sendo responsabilidade exclusiva do usuario preservar a integridade da obra (arquivo), que devera ser apresentada, quando necessario, juntamente com este certificado, para fins de comprovacao do conteudo efetivamente registrado."
   );
 
-  drawJustifiedParagraph(page, textoLegal, M, legalYStart, legalMaxW, M + 180, font, 8, white, 3);
+  drawJustifiedParagraph(
+    page,
+    textoLegal,
+    M,
+    legalYStart,
+    legalMaxW,
+    M + 180,
+    font,
+    8,
+    white,
+    3
+  );
 
   // QR Code
   const qrAreaX = WIDTH - M - (qrAreaSize + 10);
@@ -727,7 +762,7 @@ export async function generateRegistroCertificatePDFServer(
     color: bgDark,
   });
 
-  page.drawText('HASH CRIPTOGRAFICA DO REGISTRO (SHA-256)', {
+  page.drawText("HASH CRIPTOGRAFICA DO REGISTRO (SHA-256)", {
     x: lockX + 15,
     y: hashBoxY + hashBoxH - 15,
     size: 8,
@@ -755,43 +790,46 @@ export async function generateRegistroCertificatePDFServer(
       color: white,
     });
 
-    page.drawText('Esta hash garante a integridade e autenticidade do registro', {
-      x: hashBoxX + 12,
-      y: hashBoxY + hashBoxH - 54,
-      size: 6.5,
-      font,
-      color: white,
-    });
+    page.drawText(
+      "Esta hash garante a integridade e autenticidade do registro",
+      {
+        x: hashBoxX + 12,
+        y: hashBoxY + hashBoxH - 54,
+        size: 6.5,
+        font,
+        color: white,
+      }
+    );
   }
 
   // Rodapé
-  const brand1 = 'CYBER REGISTRO';
-  const brand2 = 'CNPJ: 51.670.332/0001-14';
+  const brand1 = "CYBER REGISTRO";
+  const brand2 = "CNPJ: 51.670.332/0001-14";
 
   const dateObj = new Date(ts);
-  const timestampUTC = dateObj.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'UTC',
+  const timestampUTC = dateObj.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "UTC",
   });
-  const timestampBRT = dateObj.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'America/Sao_Paulo',
+  const timestampBRT = dateObj.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "America/Sao_Paulo",
   });
   const timestampFormatted = `${timestampUTC} UTC | ${timestampBRT} UTC -3 BRT Time Zone`;
 
   let footerY = M + 88;
 
-  page.drawText('TIMESTAMP:', {
+  page.drawText("TIMESTAMP:", {
     x: M,
     y: footerY,
     size: 7,
@@ -807,7 +845,7 @@ export async function generateRegistroCertificatePDFServer(
   });
   footerY -= 12;
 
-  page.drawText('TÍTULO DA OBRA:', {
+  page.drawText("TÍTULO DA OBRA:", {
     x: M,
     y: footerY,
     size: 7,
@@ -848,7 +886,7 @@ export async function generateRegistroCertificatePDFServer(
     opacity: 0.3,
   });
 
-  page.drawText('Cyber Registro © 2025 - Documento autentico e verificavel', {
+  page.drawText("Cyber Registro © 2025 - Documento autentico e verificavel", {
     x: M,
     y: M + 18,
     size: 7,
