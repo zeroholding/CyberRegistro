@@ -31,6 +31,22 @@ export async function GET(request: NextRequest) {
 
     const payment = await asaasService.getPaymentStatus(paymentId);
 
+    // --- Lazy Sync Start ---
+    // If the payment is confirmed in Asaas, ensure it's processed in our DB.
+    // This handles cases where the webhook failed or wasn't received.
+    const { isPaymentStatusConfirmed, applyPaymentConfirmation } = await import("@/lib/payments");
+    
+    if (isPaymentStatusConfirmed(payment.status)) {
+        try {
+            console.log(`[Lazy Sync] Verificando pagamento ${paymentId} (Status: ${payment.status})`);
+            await applyPaymentConfirmation(payment);
+        } catch (syncError) {
+            console.error(`[Lazy Sync] Erro ao sincronizar pagamento ${paymentId}:`, syncError);
+            // Don't block the response; we still want to return the status to the client
+        }
+    }
+    // --- Lazy Sync End ---
+
     return NextResponse.json({
       id: payment.id,
       status: payment.status,
