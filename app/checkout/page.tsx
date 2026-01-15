@@ -249,7 +249,7 @@ function CheckoutContent() {
                                     name="nome"
                                     placeholder="Nome Completo"
                                     required
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 placeholder:text-gray-500 font-medium"
                                     value={formData.nome}
                                     onChange={handleInputChange}
                                 />
@@ -258,7 +258,7 @@ function CheckoutContent() {
                                         name="cpfCnpj"
                                         placeholder="CPF / CNPJ"
                                         required
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 placeholder:text-gray-500 font-medium"
                                         value={formData.cpfCnpj}
                                         onChange={handleInputChange}
                                      />
@@ -266,7 +266,7 @@ function CheckoutContent() {
                                         name="telefone"
                                         placeholder="Telefone / WhatsApp"
                                         required
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 placeholder:text-gray-500 font-medium"
                                         value={formData.telefone}
                                         onChange={handleInputChange}
                                      />
@@ -279,7 +279,7 @@ function CheckoutContent() {
                             type="email"
                             placeholder="Seu melhor e-mail"
                             required
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 placeholder:text-gray-500 font-medium"
                             value={formData.email}
                             onChange={handleInputChange}
                         />
@@ -289,7 +289,7 @@ function CheckoutContent() {
                             type="password"
                             placeholder={authMode === "register" ? "Crie uma senha segura" : "Sua senha"}
                             required
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 placeholder:text-gray-500 font-medium"
                             value={formData.senha}
                             onChange={handleInputChange}
                         />
