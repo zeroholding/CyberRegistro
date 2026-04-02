@@ -59,8 +59,8 @@ class AsaasService {
     }
 
     if (!hasApiKey) {
-      throw new Error(
-        "ASAAS_API_KEY nao configurada. Verifique as variáveis de ambiente.",
+      console.warn(
+        "ASAAS_API_KEY nao configurada no momento da importacao. Verifique as variaveis no runtime.",
       );
     }
 
