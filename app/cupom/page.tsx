@@ -33,6 +33,24 @@ export default function CupomPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Edit & Delete states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCupom, setEditingCupom] = useState<Cupom | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingCupom, setDeletingCupom] = useState<Cupom | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit form states
+  const [editFormData, setEditFormData] = useState({
+    code: '',
+    discountType: 'percentage' as 'percentage' | 'fixed',
+    discountValue: '',
+    maxUses: '',
+    expiresAt: '',
+    repassePercent: '',
+  });
+
   // Filtros
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -195,6 +213,92 @@ export default function CupomPage() {
     } catch (error) {
       console.error('Erro ao atualizar cupom:', error);
       showToast('Erro ao atualizar cupom', 'error');
+    }
+  };
+
+  const openEditModal = (cupom: Cupom) => {
+    setEditingCupom(cupom);
+    setEditFormData({
+      code: cupom.code,
+      discountType: cupom.discount_type,
+      discountValue: String(cupom.discount_value),
+      maxUses: cupom.max_uses ? String(cupom.max_uses) : '',
+      expiresAt: cupom.expires_at ? cupom.expires_at.split('T')[0] : '',
+      repassePercent: cupom.repasse_percent ? String(cupom.repasse_percent) : '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditCupom = async () => {
+    if (!editingCupom) return;
+    if (!editFormData.code.trim()) {
+      showToast('Código do cupom é obrigatório', 'error');
+      return;
+    }
+    if (!editFormData.discountValue || parseFloat(editFormData.discountValue) <= 0) {
+      showToast('Valor do desconto deve ser maior que zero', 'error');
+      return;
+    }
+    try {
+      setIsSaving(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/cupons/${editingCupom.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          code: editFormData.code.toUpperCase().trim(),
+          discount_type: editFormData.discountType,
+          discount_value: parseFloat(editFormData.discountValue),
+          max_uses: editFormData.maxUses ? parseInt(editFormData.maxUses) : null,
+          expires_at: editFormData.expiresAt || null,
+          repasse_percent: editFormData.repassePercent ? parseFloat(editFormData.repassePercent) : 0,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast('Cupom atualizado com sucesso', 'success');
+        setShowEditModal(false);
+        setEditingCupom(null);
+        loadCupons();
+      } else {
+        showToast(data.error || 'Erro ao atualizar cupom', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar cupom:', error);
+      showToast('Erro ao atualizar cupom', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteCupom = async () => {
+    if (!deletingCupom) return;
+    try {
+      setIsDeleting(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/cupons/${deletingCupom.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        showToast(`Cupom ${deletingCupom.code} excluído com sucesso`, 'success');
+        setShowDeleteConfirm(false);
+        setDeletingCupom(null);
+        loadCupons();
+      } else {
+        const data = await response.json();
+        showToast(data.error || 'Erro ao excluir cupom', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir cupom:', error);
+      showToast('Erro ao excluir cupom', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -541,22 +645,48 @@ export default function CupomPage() {
                           Criado em {new Date(cupom.created_at).toLocaleDateString('pt-BR')}
                         </p>
                         
-                        {cupom.partner_token && (
+                        <div className="flex items-center gap-2">
+                          {cupom.partner_token && (
+                            <button
+                              onClick={() => {
+                                const url = `${window.location.origin}/parceiro/cupom/${cupom.partner_token}`;
+                                navigator.clipboard.writeText(url);
+                                showToast('Link do parceiro copiado!', 'success');
+                              }}
+                              className="text-xs font-medium text-[#2F4F7F] hover:text-[#253B65] flex items-center gap-1 transition-colors"
+                              title="Copiar link para parceiro ver métricas"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                              Link
+                            </button>
+                          )}
+
+                          {/* Editar */}
                           <button
-                            onClick={() => {
-                              const url = `${window.location.origin}/parceiro/cupom/${cupom.partner_token}`;
-                              navigator.clipboard.writeText(url);
-                              showToast('Link do parceiro copiado!', 'success');
-                            }}
-                            className="text-xs font-medium text-[#2F4F7F] hover:text-[#253B65] flex items-center gap-1 transition-colors"
-                            title="Copiar link para parceiro ver métricas"
+                            onClick={() => openEditModal(cupom)}
+                            className="text-xs font-medium text-amber-600 hover:text-amber-800 flex items-center gap-1 transition-colors"
+                            title="Editar cupom"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
-                            Link Parceiro
+                            Editar
                           </button>
-                        )}
+
+                          {/* Excluir */}
+                          <button
+                            onClick={() => { setDeletingCupom(cupom); setShowDeleteConfirm(true); }}
+                            className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
+                            title="Excluir cupom"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Excluir
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -725,6 +855,204 @@ export default function CupomPage() {
               min={new Date().toISOString().split('T')[0]}
             />
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Editar Cupom */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => !isSaving && setShowEditModal(false)}
+        title={`Editar Cupom ${editingCupom?.code || ''}`}
+        maxWidth="md"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowEditModal(false)}
+              disabled={isSaving}
+              className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900 transition-colors font-medium disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleEditCupom}
+              disabled={isSaving}
+              className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Salvando...
+                </>
+              ) : (
+                'Salvar Alterações'
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Código */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Código do Cupom</label>
+            <input
+              type="text"
+              value={editFormData.code}
+              onChange={(e) => setEditFormData({ ...editFormData, code: e.target.value.toUpperCase() })}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none font-mono"
+              maxLength={20}
+            />
+          </div>
+
+          {/* Tipo de Desconto */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Tipo de Desconto</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setEditFormData({ ...editFormData, discountType: 'percentage' })}
+                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                  editFormData.discountType === 'percentage'
+                    ? 'border-amber-500 bg-amber-50 text-amber-700 font-semibold'
+                    : 'border-neutral-200 text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-lg">%</div>
+                  <div className="text-xs mt-1">Percentual</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditFormData({ ...editFormData, discountType: 'fixed' })}
+                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                  editFormData.discountType === 'fixed'
+                    ? 'border-amber-500 bg-amber-50 text-amber-700 font-semibold'
+                    : 'border-neutral-200 text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-lg">R$</div>
+                  <div className="text-xs mt-1">Fixo</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Valor */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Valor do Desconto</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
+                {editFormData.discountType === 'percentage' ? '%' : 'R$'}
+              </span>
+              <input
+                type="number"
+                value={editFormData.discountValue}
+                onChange={(e) => setEditFormData({ ...editFormData, discountValue: e.target.value })}
+                className="w-full pl-10 pr-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                step={editFormData.discountType === 'percentage' ? '1' : '0.01'}
+                min="0"
+                max={editFormData.discountType === 'percentage' ? '100' : undefined}
+              />
+            </div>
+          </div>
+
+          {/* Repasse */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              % de Repasse/Comissão <span className="text-neutral-400">(opcional)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">%</span>
+              <input
+                type="number"
+                value={editFormData.repassePercent}
+                onChange={(e) => setEditFormData({ ...editFormData, repassePercent: e.target.value })}
+                placeholder="Ex: 5"
+                className="w-full pl-10 px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                step="0.01" min="0" max="100"
+              />
+            </div>
+          </div>
+
+          {/* Máximo de Usos */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Máximo de Usos <span className="text-neutral-400">(opcional)</span>
+            </label>
+            <input
+              type="number"
+              value={editFormData.maxUses}
+              onChange={(e) => setEditFormData({ ...editFormData, maxUses: e.target.value })}
+              placeholder="Deixe vazio para ilimitado"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+              min="1"
+            />
+          </div>
+
+          {/* Data de Expiração */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Data de Expiração <span className="text-neutral-400">(opcional)</span>
+            </label>
+            <input
+              type="date"
+              value={editFormData.expiresAt}
+              onChange={(e) => setEditFormData({ ...editFormData, expiresAt: e.target.value })}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => !isDeleting && setShowDeleteConfirm(false)}
+        title="Excluir Cupom"
+        maxWidth="sm"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => { setShowDeleteConfirm(false); setDeletingCupom(null); }}
+              disabled={isDeleting}
+              className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900 transition-colors font-medium disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDeleteCupom}
+              disabled={isDeleting}
+              className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Excluindo...
+                </>
+              ) : (
+                'Sim, Excluir'
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="text-center py-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.27 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <p className="text-neutral-800 font-medium text-lg mb-2">
+            Tem certeza que deseja excluir o cupom <span className="font-bold font-mono">{deletingCupom?.code}</span>?
+          </p>
+          <p className="text-neutral-500 text-sm">
+            Essa ação é irreversível e todos os dados de uso deste cupom serão perdidos.
+          </p>
         </div>
       </Modal>
     </div>
