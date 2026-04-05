@@ -18,6 +18,10 @@ interface Cupom {
   is_active: boolean;
   created_at: string;
   partner_token: string | null;
+  repasse_percent: string | number;
+  period_uses: string | number;
+  period_sales: string | number;
+  period_repass: string | number;
 }
 
 export default function CupomPage() {
@@ -32,6 +36,8 @@ export default function CupomPage() {
   // Filtros
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -40,6 +46,7 @@ export default function CupomPage() {
     discountValue: '',
     maxUses: '',
     expiresAt: '',
+    repassePercent: '',
   });
 
   const router = useRouter();
@@ -77,7 +84,14 @@ export default function CupomPage() {
     try {
       setLoadingCupons(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/cupons', {
+      
+      let queryUrl = '/api/cupons';
+      const queryParams = new URLSearchParams();
+      if (startDate) queryParams.append('startDate', startDate);
+      if (endDate) queryParams.append('endDate', endDate);
+      if (queryParams.toString()) queryUrl += `?${queryParams.toString()}`;
+
+      const response = await fetch(queryUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -129,6 +143,7 @@ export default function CupomPage() {
           discount_value: parseFloat(formData.discountValue),
           max_uses: formData.maxUses ? parseInt(formData.maxUses) : null,
           expires_at: formData.expiresAt || null,
+          repasse_percent: formData.repassePercent ? parseFloat(formData.repassePercent) : 0,
         }),
       });
 
@@ -143,6 +158,7 @@ export default function CupomPage() {
           discountValue: '',
           maxUses: '',
           expiresAt: '',
+          repassePercent: '',
         });
         loadCupons();
       } else {
@@ -254,6 +270,44 @@ export default function CupomPage() {
             {/* Filtros */}
             {!loadingCupons && cupons.length > 0 && (
               <div className="mb-6 space-y-4">
+                {/* Filtros de data */}
+                <div className="flex flex-col md:flex-row md:items-end gap-4 bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1">Data Início</label>
+                    <input 
+                      type="date" 
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-[#2F4F7F] outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1">Data Fim</label>
+                    <input 
+                      type="date" 
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-[#2F4F7F] outline-none"
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={loadCupons}
+                    className="px-5 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors font-medium text-sm"
+                  >
+                    Filtrar Período
+                  </button>
+                  
+                  {(startDate || endDate) && (
+                    <button
+                      onClick={() => { setStartDate(''); setEndDate(''); setTimeout(() => loadCupons(), 100); }}
+                      className="px-4 py-2 text-neutral-500 hover:text-neutral-800 transition-colors text-sm font-medium"
+                    >
+                      Limpar Data
+                    </button>
+                  )}
+                </div>
+
                 {/* Barra de busca e filtros */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   {/* Campo de busca */}
@@ -447,12 +501,37 @@ export default function CupomPage() {
                           </span>
                         </div>
 
+                        {(startDate || endDate) && (
+                         <div className="flex justify-between text-[#2F4F7F] bg-[#2F4F7F]/5 px-2 py-1 rounded">
+                           <span>Usos no Período:</span>
+                           <span className="font-bold">
+                             {cupom.period_uses}
+                           </span>
+                         </div>
+                        )}
+
                         {cupom.expires_at && (
                           <div className="flex justify-between">
                             <span>Expira em:</span>
                             <span className="font-medium">
                               {new Date(cupom.expires_at).toLocaleDateString('pt-BR')}
                             </span>
+                          </div>
+                        )}
+                        
+                        {Number(cupom.repasse_percent) > 0 && (
+                          <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-col gap-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-neutral-500">Repasse ({cupom.repasse_percent}%):</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] uppercase tracking-wider text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">
+                                Comissão Gerada
+                              </span>
+                              <span className="font-bold text-green-700">
+                                R$ {Number(cupom.period_repass).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -594,6 +673,26 @@ export default function CupomPage() {
                 step={formData.discountType === 'percentage' ? '1' : '0.01'}
                 min="0"
                 max={formData.discountType === 'percentage' ? '100' : undefined}
+              />
+            </div>
+          </div>
+
+          {/* Repasse (Opcional) */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              % de Repasse/Comissão <span className="text-neutral-400">(opcional)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">%</span>
+              <input
+                type="number"
+                value={formData.repassePercent}
+                onChange={(e) => setFormData({ ...formData, repassePercent: e.target.value })}
+                placeholder="Ex: 5"
+                className="w-full pl-10 px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F4F7F] focus:border-transparent outline-none"
+                step="0.01"
+                min="0"
+                max="100"
               />
             </div>
           </div>

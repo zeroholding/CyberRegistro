@@ -29,22 +29,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await pool.query(
-      `SELECT
-        id,
-        code,
-        discount_type,
-        discount_value,
-        max_uses,
-        uses_count,
-        expires_at,
-        is_active,
-        created_at,
-        updated_at,
-        partner_token
-      FROM cupons
-      ORDER BY created_at DESC`
-    );
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+
+    let query = `
+      SELECT
+        c.id,
+        c.code,
+        c.discount_type,
+        c.discount_value,
+        c.max_uses,
+        c.uses_count,
+        c.expires_at,
+        c.is_active,
+        c.created_at,
+        c.updated_at,
+        c.partner_token,
+        c.repasse_percent,
+        COUNT(cu.id) as period_uses,
+        COALESCE(SUM(t.amount), 0) as period_sales,
+        COALESCE(SUM(t.amount * (c.repasse_percent / 100)), 0) as period_repass
+      FROM cupons c
+      LEFT JOIN cupons_usage cu ON c.id = cu.cupom_id 
+        AND ($1::timestamp IS NULL OR cu.used_at >= $1::timestamp)
+        AND ($2::timestamp IS NULL OR cu.used_at <= $2::timestamp + interval '1 day')
+      LEFT JOIN transactions t ON cu.transaction_id = t.id AND t.status = 'completed'
+      GROUP BY c.id
+      ORDER BY c.created_at DESC
+    `;
+
+    const result = await pool.query(query, [startDate || null, endDate || null]);
 
     return NextResponse.json({ cupons: result.rows });
 
@@ -69,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { code, discount_type, discount_value, max_uses, expires_at } = body;
+    const { code, discount_type, discount_value, max_uses, expires_at, repasse_percent } = body;
 
     // Validações
     if (!code || !code.trim()) {
@@ -115,6 +130,8 @@ export async function POST(request: NextRequest) {
 
     // Criar cupom
     const partnerToken = randomUUID();
+    const repasseValue = repasse_percent ? parseFloat(repasse_percent) : 0.00;
+    
     const result = await pool.query(
       `INSERT INTO cupons (
         code,
@@ -124,8 +141,9 @@ export async function POST(request: NextRequest) {
         expires_at,
         is_active,
         uses_count,
-        partner_token
-      ) VALUES ($1, $2, $3, $4, $5, true, 0, $6)
+        partner_token,
+        repasse_percent
+      ) VALUES ($1, $2, $3, $4, $5, true, 0, $6, $7)
       RETURNING
         id,
         code,
@@ -136,14 +154,16 @@ export async function POST(request: NextRequest) {
         expires_at,
         is_active,
         created_at,
-        partner_token`,
+        partner_token,
+        repasse_percent`,
       [
         code.toUpperCase().trim(),
         discount_type,
         discount_value,
         max_uses || null,
         expires_at || null,
-        partnerToken
+        partnerToken,
+        repasseValue
       ]
     );
 
