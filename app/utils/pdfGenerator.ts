@@ -106,7 +106,7 @@ async function embedImageSafe(pdfDoc: PDFDocument, imageUrl: string): Promise<an
 }
 
 // Página 2: Descrição do Anúncio
-async function generateDescriptionPage(pdfDoc: PDFDocument, data: AnuncioPDFData) {
+async function generateDescriptionPage(pdfDoc: PDFDocument, data: AnuncioPDFData, pageNumber: number = 2) {
   const page = pdfDoc.addPage();
   const { width, height } = page.getSize();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -218,7 +218,7 @@ async function generateDescriptionPage(pdfDoc: PDFDocument, data: AnuncioPDFData
   });
 
   // Footer
-  page.drawText('Cyber Registro © 2025 - Página 2', {
+  page.drawText(`Cyber Registro © 2025 - Página ${pageNumber}`, {
     x: width / 2 - 60,
     y: 15,
     size: 9,
@@ -367,6 +367,53 @@ export async function generateAnuncioPDF(data: AnuncioPDFData): Promise<void> {
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Erro ao gerar PDF:', error);
+    throw error;
+  }
+}
+
+export async function generateMassAnunciosPDF(dataArray: AnuncioPDFData[]): Promise<void> {
+  try {
+    const capaResponse = await fetch('/capa.pdf');
+    const capaBytes = await capaResponse.arrayBuffer();
+
+    const capaPdf = await PDFDocument.load(capaBytes);
+    const pdfDoc = await PDFDocument.create();
+
+    for (let j = 0; j < dataArray.length; j++) {
+      const data = dataArray[j];
+      const itemsSoFar = pdfDoc.getPageCount();
+
+      // Copiar a primeira página da capa
+      const [capaPage] = await pdfDoc.copyPages(capaPdf, [0]);
+      pdfDoc.addPage(capaPage);
+
+      // Página Descrição
+      await generateDescriptionPage(pdfDoc, data, pdfDoc.getPageCount() + 1);
+
+      // Páginas de imagens
+      if (data.pictures && data.pictures.length > 0) {
+        for (let i = 0; i < data.pictures.length; i++) {
+          const imageUrl = data.pictures[i].url || data.pictures[i].secure_url;
+          if (imageUrl) {
+            await generateImagePage(pdfDoc, imageUrl, pdfDoc.getPageCount() + 1, data.title, data.mlbCode);
+          }
+        }
+      }
+    }
+
+    // Salvar e baixar o PDF unificado
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Anuncios_Massa_${new Date().getTime()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Erro ao gerar PDF em massa:', error);
     throw error;
   }
 }
