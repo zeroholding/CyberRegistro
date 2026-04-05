@@ -5,9 +5,10 @@ import { useState, useEffect, useRef } from 'react';
 interface UserDropdownProps {
   usuario: any;
   onLogout: () => void;
+  onOpenProfile?: () => void;
 }
 
-export default function UserDropdown({ usuario, onLogout }: UserDropdownProps) {
+export default function UserDropdown({ usuario, onLogout, onOpenProfile }: UserDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -140,19 +141,29 @@ export default function UserDropdown({ usuario, onLogout }: UserDropdownProps) {
 
           {/* Menu Items */}
           <div className="p-1.5">
-            <a
-              href="#"
-              className="block w-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors duration-150 font-medium"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsOpen(false);
+                if (onOpenProfile) onOpenProfile();
+              }}
+              className="block w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors duration-150 font-medium"
             >
               Perfil
-            </a>
+            </button>
 
-            <a
-              href="#"
-              className="block w-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors duration-150 font-medium"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsOpen(false);
+                if (onOpenProfile) onOpenProfile();
+              }}
+              className="block w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors duration-150 font-medium"
             >
               Configurações
-            </a>
+            </button>
 
             <a
               href="#"
