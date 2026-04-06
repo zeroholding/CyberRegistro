@@ -104,18 +104,28 @@ class AsaasService {
 
       if (!response.ok) {
         let errorMessage = "Erro ao comunicar com Asaas";
+        let fullErrorData = null;
         try {
-          const responseData = await response.json();
-          console.error("[ASAAS] Erro na requisicao:", {
-            status: response.status,
-            statusText: response.statusText,
-            data: responseData,
-          });
-          errorMessage = responseData.errors?.[0]?.description || errorMessage;
+          const responseText = await response.text();
+          try {
+            fullErrorData = JSON.parse(responseText);
+            console.error("[ASAAS] Erro na requisicao:", {
+              status: response.status,
+              statusText: response.statusText,
+              data: fullErrorData,
+            });
+            errorMessage = fullErrorData.errors?.[0]?.description || 
+                           fullErrorData.message || 
+                           fullErrorData.error || 
+                           responseText || 
+                           errorMessage;
+          } catch (e) {
+            errorMessage = responseText || errorMessage;
+          }
         } catch (parseError) {
-          console.error("[ASAAS] Erro ao fazer parse da resposta de erro:", parseError);
+          console.error("[ASAAS] Erro ao ler a resposta de erro:", parseError);
         }
-        throw new Error(errorMessage);
+        throw new Error(`Asaas [${response.status}]: ${errorMessage}`);
       }
 
       const responseData = await response.json();
