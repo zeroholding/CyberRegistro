@@ -64,7 +64,7 @@ class AsaasService {
       );
     }
 
-    this.apiKey = ASAAS_API_KEY;
+    this.apiKey = ASAAS_API_KEY.replace(/^["']|["']$/g, "").trim();
     this.baseUrl = ASAAS_BASE_URL;
 
     console.log("AsaasService inicializado - Ambiente:", ASAAS_ENV);
