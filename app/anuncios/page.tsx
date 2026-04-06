@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import SyncListingsModal from '../components/SyncListingsModal';
-import { generateAnuncioPDF, generateMassAnunciosPDF } from '../utils/pdfGenerator';
+import { generateAnuncioPDF } from '../utils/pdfGenerator';
 
 interface Listing {
   id: number;
@@ -211,6 +211,7 @@ function AnunciosPageContent() {
   const [selectedListings, setSelectedListings] = useState<number[]>([]);
   const [generatingPDF, setGeneratingPDF] = useState<number | null>(null);
   const [generatingMassPDF, setGeneratingMassPDF] = useState(false);
+  const [massPDFProgress, setMassPDFProgress] = useState({ current: 0, total: 0 });
   const router = useRouter();
 
   const buildQueryString = useCallback(
@@ -415,35 +416,55 @@ function AnunciosPageContent() {
     }
   };
 
+  const MASS_PDF_LIMIT = 20;
+
   const handleGenerateMassPDFs = async () => {
     if (!usuario?.id || selectedListings.length === 0) return;
+
+    if (selectedListings.length > MASS_PDF_LIMIT) {
+      alert(`Selecione no máximo ${MASS_PDF_LIMIT} anúncios por vez para gerar PDFs em massa.`);
+      return;
+    }
+
     try {
       setGeneratingMassPDF(true);
-      const dataArray = [];
-      
-      // Fetch each listing's data sequentially to avoid overloading the server/DB
-      for (const id of selectedListings) {
-        const response = await fetch(
-          `/api/anuncios/generate-pdf?id=${id}&userId=${usuario.id}`
-        );
-        if (response.ok) {
-          const pdfData = await response.json();
-          dataArray.push(pdfData);
-        } else {
-          console.error(`Erro ao buscar dados do anuncio ${id}`);
+      const total = selectedListings.length;
+      setMassPDFProgress({ current: 0, total });
+
+      let erros = 0;
+
+      for (let i = 0; i < total; i++) {
+        const id = selectedListings[i];
+        setMassPDFProgress({ current: i + 1, total });
+
+        try {
+          const response = await fetch(
+            `/api/anuncios/generate-pdf?id=${id}&userId=${usuario.id}`
+          );
+          if (response.ok) {
+            const pdfData = await response.json();
+            await generateAnuncioPDF(pdfData);
+            // Pequeno delay entre downloads para o navegador não engasgar
+            await new Promise(r => setTimeout(r, 800));
+          } else {
+            console.error(`Erro ao buscar dados do anuncio ${id}`);
+            erros++;
+          }
+        } catch (err) {
+          console.error(`Erro ao gerar PDF do anuncio ${id}:`, err);
+          erros++;
         }
       }
 
-      if (dataArray.length > 0) {
-        await generateMassAnunciosPDF(dataArray);
-      } else {
-        alert('Nenhum dado válido para gerar PDF.');
+      if (erros > 0) {
+        alert(`Concluído! ${total - erros} PDF(s) gerado(s) com sucesso. ${erros} falharam.`);
       }
     } catch (error) {
       console.error('Erro ao gerar PDFs em massa:', error);
-      alert('Erro ao gerar PDF em massa. Por favor, tente novamente.');
+      alert('Erro ao gerar PDFs. Por favor, tente novamente.');
     } finally {
       setGeneratingMassPDF(false);
+      setMassPDFProgress({ current: 0, total: 0 });
     }
   };
 
@@ -735,8 +756,9 @@ function AnunciosPageContent() {
                       <button
                         type="button"
                         onClick={handleGenerateMassPDFs}
-                        disabled={selectedListings.length === 0 || generatingMassPDF}
+                        disabled={selectedListings.length === 0 || generatingMassPDF || selectedListings.length > MASS_PDF_LIMIT}
                         className="rounded-xl border border-[#2F4F7F] text-[#2F4F7F] px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:bg-[#2F4F7F]/5 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+                        title={selectedListings.length > MASS_PDF_LIMIT ? `Máximo ${MASS_PDF_LIMIT} por vez` : ''}
                       >
                         {generatingMassPDF ? (
                           <>
@@ -744,8 +766,10 @@ function AnunciosPageContent() {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Gerando...
+                            {`Gerando ${massPDFProgress.current} de ${massPDFProgress.total}...`}
                           </>
+                        ) : selectedListings.length > MASS_PDF_LIMIT ? (
+                          `Máx. ${MASS_PDF_LIMIT} por vez`
                         ) : (
                           `Baixar PDFs (${selectedListings.length})`
                         )}
