@@ -58,13 +58,23 @@ class AsaasService {
       );
     }
 
-    if (!hasApiKey) {
+    if (!hasApiKey && !process.env.ASAAS_API_KEY_B64) {
       console.warn(
-        "ASAAS_API_KEY nao configurada no momento da importacao. Verifique as variaveis no runtime.",
+        "Nenhuma chave Asaas (ASAAS_API_KEY ou ASAAS_API_KEY_B64) configurada. Verifique as variáveis no runtime."
       );
     }
 
-    this.apiKey = ASAAS_API_KEY.replace(/^["']|["']$/g, "").trim();
+    let resolvedKey = ASAAS_API_KEY;
+    if (process.env.ASAAS_API_KEY_B64) {
+      try {
+        resolvedKey = Buffer.from(process.env.ASAAS_API_KEY_B64, 'base64').toString('utf8');
+        console.log("Usando ASAAS_API_KEY_B64 para evitar problemas com sifrões ($)");
+      } catch (e) {
+        console.error("Erro ao fazer decode de ASAAS_API_KEY_B64", e);
+      }
+    }
+
+    this.apiKey = resolvedKey.replace(/^["']|["']$/g, "").trim();
     this.baseUrl = ASAAS_BASE_URL;
 
     console.log("AsaasService inicializado - Ambiente:", ASAAS_ENV);
