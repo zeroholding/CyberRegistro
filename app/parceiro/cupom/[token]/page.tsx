@@ -8,6 +8,7 @@ interface Usage {
   used_at: string;
   discount_applied: number;
   sale_amount: number;
+  credits_quantity: number;
   commission: number;
 }
 
@@ -147,7 +148,7 @@ export default function PartnerCouponPage() {
             </div>
             {data.cupom.repasse_percent > 0 && (
                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                 {data.cupom.repasse_percent}% de Comissão (Repasse)
+                 {Math.trunc(data.cupom.repasse_percent)}% de Comissão (Repasse)
                </div>
             )}
           </div>
@@ -219,14 +220,14 @@ export default function PartnerCouponPage() {
           <div className="bg-white rounded-xl p-5 shadow-sm border border-neutral-200">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Desconto Aplicado</p>
+                <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Vendas (Receita Bruta)</p>
                 <p className="mt-2 text-2xl font-bold text-neutral-900">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_discount)}
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_sales)}
                 </p>
               </div>
-              <div className="p-2.5 bg-amber-50 rounded-lg text-amber-600">
+              <div className="p-2.5 bg-emerald-50 rounded-lg text-emerald-600">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
             </div>
@@ -235,14 +236,14 @@ export default function PartnerCouponPage() {
           <div className="bg-white rounded-xl p-5 shadow-sm border border-neutral-200">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Vendas Geradas</p>
+                <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Desconto Aplicado</p>
                 <p className="mt-2 text-2xl font-bold text-neutral-900">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_sales)}
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_discount)}
                 </p>
               </div>
-              <div className="p-2.5 bg-emerald-50 rounded-lg text-emerald-600">
+              <div className="p-2.5 bg-amber-50 rounded-lg text-amber-600">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
                 </svg>
               </div>
             </div>
@@ -278,6 +279,9 @@ export default function PartnerCouponPage() {
                   <th scope="col" className="px-6 py-3 text-left">
                     Data / Hora
                   </th>
+                  <th scope="col" className="px-6 py-3 text-center">
+                    Qtd
+                  </th>
                   <th scope="col" className="px-6 py-3 text-right">
                     Valor Venda
                   </th>
@@ -296,6 +300,9 @@ export default function PartnerCouponPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-600">
                         {new Date(usage.used_at).toLocaleString('pt-BR')}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 text-center font-medium">
+                        {usage.credits_quantity || 1}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 text-right">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(usage.sale_amount || 0)}
                       </td>
@@ -309,7 +316,7 @@ export default function PartnerCouponPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-neutral-500">
+                    <td colSpan={5} className="px-6 py-12 text-center text-neutral-500">
                       Nenhum uso registrado neste período.
                     </td>
                   </tr>

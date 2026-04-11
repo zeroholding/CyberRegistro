@@ -9,6 +9,7 @@ interface Usage {
   used_at: string;
   discount_applied: number;
   sale_amount: number;
+  credits_quantity: number;
   commission: number;
 }
 
@@ -189,7 +190,7 @@ export default function InternalCupomDashboard({ params }: { params: Promise<{ i
                        </span>
                        {data.cupom.repasse_percent > 0 && (
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                            {data.cupom.repasse_percent}% de Repasse (Comissão)
+                            {Math.trunc(data.cupom.repasse_percent)}% de Repasse (Comissão)
                           </span>
                        )}
                     </div>
@@ -246,15 +247,15 @@ export default function InternalCupomDashboard({ params }: { params: Promise<{ i
                     <p className="text-2xl font-bold text-neutral-900">{data.stats.total_uses}</p>
                   </div>
                   <div className="bg-white rounded-xl p-5 shadow-sm border border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Desconto Gerado (Perda)</p>
-                    <p className="text-2xl font-bold text-rose-600">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_discount)}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-xl p-5 shadow-sm border border-neutral-200">
                     <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Vendas (Receita Bruta)</p>
                     <p className="text-2xl font-bold text-emerald-600">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_sales)}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-neutral-200">
+                    <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Desconto Gerado (Perda)</p>
+                    <p className="text-2xl font-bold text-rose-600">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.stats.total_discount)}
                     </p>
                   </div>
                   <div className="bg-indigo-50 rounded-xl p-5 shadow-sm border border-indigo-200">
@@ -275,6 +276,7 @@ export default function InternalCupomDashboard({ params }: { params: Promise<{ i
                       <thead className="bg-neutral-50 text-neutral-500 text-xs font-semibold uppercase tracking-wider">
                         <tr>
                           <th className="px-5 py-3 text-left">Data / Hora</th>
+                          <th className="px-5 py-3 text-center">Qtd</th>
                           <th className="px-5 py-3 text-right">Volume da Venda</th>
                           <th className="px-5 py-3 text-right">Desconto (Cupom)</th>
                           <th className="px-5 py-3 text-right">Repasse Parceiro</th>
@@ -286,6 +288,9 @@ export default function InternalCupomDashboard({ params }: { params: Promise<{ i
                             <tr key={idx} className="hover:bg-neutral-50">
                               <td className="px-5 py-3 text-sm text-neutral-600">
                                 {new Date(usage.used_at).toLocaleString('pt-BR')}
+                              </td>
+                              <td className="px-5 py-3 text-sm text-neutral-900 text-center font-medium">
+                                {usage.credits_quantity || 1}
                               </td>
                               <td className="px-5 py-3 text-sm font-medium text-neutral-900 text-right">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(usage.sale_amount || 0)}
@@ -300,7 +305,7 @@ export default function InternalCupomDashboard({ params }: { params: Promise<{ i
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={4} className="px-5 py-10 text-center text-neutral-500">
+                            <td colSpan={5} className="px-5 py-10 text-center text-neutral-500">
                               Nenhuma transação registrada nas datas informadas.
                             </td>
                           </tr>

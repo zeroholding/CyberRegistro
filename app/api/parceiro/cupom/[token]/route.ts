@@ -35,7 +35,7 @@ export async function GET(
       SELECT
         COUNT(cu.id) as period_uses,
         COALESCE(SUM(cu.discount_applied), 0) as period_discount,
-        COALESCE(SUM(t.amount), 0) as period_sales,
+        COALESCE(SUM(t.amount + cu.discount_applied), 0) as period_sales,
         COALESCE(SUM(t.amount * ($3::numeric / 100)), 0) as period_repass
       FROM cupons_usage cu
       LEFT JOIN transactions t ON cu.transaction_id = t.id AND t.status = 'completed'
@@ -55,7 +55,7 @@ export async function GET(
 
     // Buscar histórico recente detalhado
     const usageResult = await pool.query(
-      `SELECT cu.used_at, cu.discount_applied, t.amount as sale_amount, (t.amount * ($2::numeric / 100)) as commission
+      `SELECT cu.used_at, cu.discount_applied, t.amount as sale_amount, t.credits_quantity, (t.amount * ($2::numeric / 100)) as commission
        FROM cupons_usage cu
        LEFT JOIN transactions t ON cu.transaction_id = t.id AND t.status = 'completed'
        WHERE cu.cupom_id = $1
