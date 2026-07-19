@@ -128,6 +128,13 @@ export type ShopeeItem = {
   update_time?: number;
   image?: { image_url_list?: string[] };
   price_info?: Array<{ current_price: number }>;
+  tier_variation?: Array<{
+    name?: string;
+    option_list?: Array<{
+      option?: string;
+      image?: { image_id?: string; image_url?: string };
+    }>;
+  }>;
 };
 
 /** Lista os item_ids da loja (paginado por offset/cursor). */

@@ -67,8 +67,26 @@ export async function GET(request: NextRequest) {
           );
           if (items.length > 0) {
             const it = items[0];
-            shopeePictures = (it.image?.image_url_list || [])
-              .filter(Boolean)
+            // Fotos principais do anúncio + imagem de cada variação (tier).
+            // A Shopee só permite imagem no 1º tier, mas percorremos todos por
+            // segurança. Dedupe por URL para não repetir páginas.
+            const urls: string[] = [];
+            for (const u of it.image?.image_url_list || []) {
+              if (u) urls.push(u);
+            }
+            for (const tier of it.tier_variation || []) {
+              for (const opt of tier.option_list || []) {
+                const u = opt.image?.image_url;
+                if (u) urls.push(u);
+              }
+            }
+            const seen = new Set<string>();
+            shopeePictures = urls
+              .filter((u) => {
+                if (seen.has(u)) return false;
+                seen.add(u);
+                return true;
+              })
               .map((url) => ({ url, secure_url: url }));
             shopeeDescription = it.description || '';
           }
