@@ -172,6 +172,52 @@ export async function getShopeeItemList(
   };
 }
 
+export type ShopeeModelList = {
+  tier_variation?: Array<{
+    name?: string;
+    option_list?: Array<{
+      option?: string;
+      image?: { image_id?: string; image_url?: string };
+    }>;
+  }>;
+  model?: Array<{
+    model_id?: number;
+    model_sku?: string;
+    tier_index?: number[];
+  }>;
+};
+
+/**
+ * Variações (modelos) de um item. Endpoint dedicado — retorna o
+ * `tier_variation` com a imagem de cada opção (ex.: cada cor), que é onde a
+ * Shopee guarda as fotos das variações.
+ */
+export async function getShopeeModelList(
+  shopId: string,
+  accessToken: string,
+  itemId: number,
+): Promise<ShopeeModelList> {
+  const { partnerId } = getShopeeCredentials();
+  const path = '/api/v2/product/get_model_list';
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = signShopCall(path, accessToken, shopId, timestamp);
+
+  const url = new URL(`${SHOPEE_HOST}${path}`);
+  url.searchParams.set('partner_id', partnerId);
+  url.searchParams.set('timestamp', String(timestamp));
+  url.searchParams.set('access_token', accessToken);
+  url.searchParams.set('shop_id', shopId);
+  url.searchParams.set('sign', signature);
+  url.searchParams.set('item_id', String(itemId));
+
+  const res = await fetch(url.toString(), { cache: 'no-store' });
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(`Erro ao buscar variações Shopee: ${JSON.stringify(data)}`);
+  }
+  return data.response || {};
+}
+
 /** Detalhes em lote (até 50 por chamada) dos itens listados. */
 export async function getShopeeItemBaseInfo(
   shopId: string,

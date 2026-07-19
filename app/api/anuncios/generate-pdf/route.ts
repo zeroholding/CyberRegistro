@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { ensureShopeeAccessToken, ShopeeAccountRecord } from '@/app/api/shopee/token-utils';
-import { getShopeeItemBaseInfo } from '@/app/services/shopee';
+import { getShopeeItemBaseInfo, getShopeeModelList } from '@/app/services/shopee';
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,9 +67,11 @@ export async function GET(request: NextRequest) {
           );
           if (items.length > 0) {
             const it = items[0];
-            // Fotos principais do anúncio + imagem de cada variação (tier).
-            // A Shopee só permite imagem no 1º tier, mas percorremos todos por
-            // segurança. Dedupe por URL para não repetir páginas.
+            // Fotos principais do anúncio + imagem de cada variação.
+            // A Shopee guarda a imagem da variação no 1º tier (ex.: cor).
+            // Coletamos do get_item_base_info E do get_model_list (endpoint
+            // dedicado a variações) para garantir que TODAS venham. Dedupe
+            // por URL para não repetir páginas.
             const urls: string[] = [];
             for (const u of it.image?.image_url_list || []) {
               if (u) urls.push(u);
@@ -80,6 +82,24 @@ export async function GET(request: NextRequest) {
                 if (u) urls.push(u);
               }
             }
+
+            // Fonte dedicada de variações (mais confiável para as imagens).
+            try {
+              const modelList = await getShopeeModelList(
+                String(account.shop_id),
+                account.access_token,
+                Number(anuncio.mlb_code),
+              );
+              for (const tier of modelList.tier_variation || []) {
+                for (const opt of tier.option_list || []) {
+                  const u = opt.image?.image_url;
+                  if (u) urls.push(u);
+                }
+              }
+            } catch (modelErr) {
+              console.error('Erro ao buscar get_model_list Shopee:', modelErr);
+            }
+
             const seen = new Set<string>();
             shopeePictures = urls
               .filter((u) => {
