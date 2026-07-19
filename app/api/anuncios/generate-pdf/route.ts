@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { ensureShopeeAccessToken, ShopeeAccountRecord } from '@/app/api/shopee/token-utils';
+import { getShopeeItemBaseInfo } from '@/app/services/shopee';
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,6 +44,45 @@ export async function GET(request: NextRequest) {
     // Buscar detalhes adicionais da API de origem, quando aplicável.
     let mlDetails = null;
     let mlDescription = '';
+
+    // Shopee: imagens e descrição vêm da API no momento do PDF (o sync em
+    // lote não guarda todas as fotos/descrição, igual ao ML).
+    let shopeePictures: Array<{ url: string; secure_url: string }> = [];
+    let shopeeDescription = '';
+
+    if (isShopee) {
+      try {
+        const acc = await pool.query(
+          `SELECT id, user_id, shop_id, shop_name, access_token, refresh_token, expires_at
+           FROM shopee_accounts WHERE id = $1`,
+          [anuncio.shopee_account_id],
+        );
+        if (acc.rows.length > 0) {
+          let account = acc.rows[0] as ShopeeAccountRecord;
+          account = await ensureShopeeAccessToken(pool, account);
+          const items = await getShopeeItemBaseInfo(
+            String(account.shop_id),
+            account.access_token,
+            [Number(anuncio.mlb_code)],
+          );
+          if (items.length > 0) {
+            const it = items[0];
+            shopeePictures = (it.image?.image_url_list || [])
+              .filter(Boolean)
+              .map((url) => ({ url, secure_url: url }));
+            shopeeDescription = it.description || '';
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar detalhes da Shopee para PDF:', error);
+        // Continue mesmo se falhar — usa thumbnail como fallback abaixo.
+      }
+
+      // Fallback: se a API não devolveu fotos, ao menos usa a thumbnail salva.
+      if (shopeePictures.length === 0 && anuncio.thumbnail) {
+        shopeePictures = [{ url: anuncio.thumbnail, secure_url: anuncio.thumbnail }];
+      }
+    }
 
     if (!isShopee) {
       try {
@@ -117,10 +158,9 @@ export async function GET(request: NextRequest) {
             firstName: anuncio.account_first_name,
             lastName: anuncio.account_last_name,
           },
-      // Detalhes adicionais da API do ML (vazio para Shopee — não expõe
-      // pictures/description em lote no get_item_base_info usado no sync)
-      pictures: mlDetails?.pictures || [],
-      description: mlDescription,
+      // Imagens/descrição: da API do ML ou da Shopee, conforme a origem.
+      pictures: isShopee ? shopeePictures : (mlDetails?.pictures || []),
+      description: isShopee ? shopeeDescription : mlDescription,
       attributes: mlDetails?.attributes || [],
       warranty: mlDetails?.warranty || '',
       shipping: mlDetails?.shipping || {},

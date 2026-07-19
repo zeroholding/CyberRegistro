@@ -123,6 +123,7 @@ export type ShopeeItem = {
   item_name: string;
   item_sku: string;
   item_status: string;
+  description?: string;
   image?: { image_url_list?: string[] };
   price_info?: Array<{ current_price: number }>;
 };
