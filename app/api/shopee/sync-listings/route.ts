@@ -25,6 +25,27 @@ function buildPermalink(shopId: string, itemId: number): string {
   return `https://shopee.com.br/product/${shopId}/${itemId}`;
 }
 
+/**
+ * Normaliza o status da Shopee para o mesmo vocabulário do Mercado Livre
+ * (usado pelos badges e filtros da tela de Anúncios). Sem isso, os anúncios
+ * Shopee (status "NORMAL") apareciam todos como "Inativo".
+ */
+function mapShopeeStatus(status?: string): string {
+  switch ((status || '').toUpperCase()) {
+    case 'NORMAL':
+      return 'active';
+    case 'UNLIST':
+      return 'paused';
+    case 'REVIEWING':
+      return 'under_review';
+    case 'BANNED':
+    case 'DELETED':
+      return 'closed';
+    default:
+      return 'active';
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -99,7 +120,7 @@ export async function POST(request: NextRequest) {
                   it.item_name,
                   it.image?.image_url_list?.[0] || null,
                   it.price_info?.[0]?.current_price ?? null,
-                  it.item_status || null,
+                  mapShopeeStatus(it.item_status),
                   buildPermalink(shopId, it.item_id),
                   'shopee',
                   it.create_time ? new Date(it.create_time * 1000) : null,
