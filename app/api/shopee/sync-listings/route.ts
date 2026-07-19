@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
                   user_id, shopee_account_id, mlb_code, sku, title, thumbnail,
                   price, status, permalink, platform, synced_at
                 ) VALUES ${valuesChunks.join(', ')}
-                ON CONFLICT (shopee_account_id, mlb_code)
+                ON CONFLICT (shopee_account_id, mlb_code) WHERE shopee_account_id IS NOT NULL
                 DO UPDATE SET
                   sku = EXCLUDED.sku,
                   title = EXCLUDED.title,
