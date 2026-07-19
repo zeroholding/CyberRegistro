@@ -79,7 +79,16 @@ export async function GET(request: NextRequest) {
       return html(buildResultHtml(false, 'Erro ao Conectar', 'Falha ao obter token da Shopee', 'SHOPEE_AUTH_ERROR', 'token_exchange_failed'));
     }
 
-    const shopName = await getShopeeShopName(String(tokens.shop_id), tokens.access_token);
+    // O `shop_id` autoritativo é o que a Shopee envia na query do callback.
+    // A resposta da troca de token nem sempre traz `tokens.shop_id` preenchido
+    // (dependendo do tipo de autorização), então usamos o da query como base.
+    const resolvedShopId = Number(shopId) || tokens.shop_id;
+    if (!resolvedShopId) {
+      console.error('Callback Shopee sem shop_id válido', { shopId, tokenShopId: tokens.shop_id });
+      return html(buildResultHtml(false, 'Erro ao Conectar', 'Loja não identificada no retorno da Shopee', 'SHOPEE_AUTH_ERROR', 'missing_shop_id'));
+    }
+
+    const shopName = await getShopeeShopName(String(resolvedShopId), tokens.access_token);
     const expiresAt = new Date(Date.now() + Math.max(30, tokens.expire_in - 60) * 1000);
 
     await pool.query(
@@ -92,7 +101,7 @@ export async function GET(request: NextRequest) {
          refresh_token = EXCLUDED.refresh_token,
          expires_at = EXCLUDED.expires_at,
          updated_at = CURRENT_TIMESTAMP`,
-      [userId, tokens.shop_id, shopName, tokens.access_token, tokens.refresh_token, expiresAt],
+      [userId, resolvedShopId, shopName, tokens.access_token, tokens.refresh_token, expiresAt],
     );
 
     return html(buildResultHtml(true, 'Loja Conectada', 'Fechando automaticamente...', 'SHOPEE_AUTH_SUCCESS'));
