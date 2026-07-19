@@ -11,7 +11,8 @@
     "migrate-ml": "node scripts/migrate-ml.js",
     "migrate-ml-accounts": "node scripts/migrate-ml-accounts.js",
     "migrate-anuncios": "node scripts/migrate-anuncios.js",
-    "migrate-anuncios-registro": "node scripts/migrate-anuncios-registro.js"
+    "migrate-anuncios-registro": "node scripts/migrate-anuncios-registro.js",
+    "migrate-shopee": "node scripts/migrate-shopee.js"
   },
   "dependencies": {
     "@number-flow/react": "^0.5.10",

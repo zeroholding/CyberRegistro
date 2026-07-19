@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import SyncListingsModal from '../components/SyncListingsModal';
+import SyncShopeeModal from '../components/SyncShopeeModal';
 import { generateAnuncioPDF } from '../utils/pdfGenerator';
 
 interface Listing {
@@ -18,9 +19,12 @@ interface Listing {
   sold_quantity: number;
   status: string;
   permalink: string;
-  account_nickname: string;
-  account_first_name: string;
-  account_last_name: string;
+  platform?: 'mercadolivre' | 'shopee';
+  account_nickname?: string;
+  account_first_name?: string;
+  account_last_name?: string;
+  ml_account_nickname?: string;
+  shopee_shop_name?: string;
   synced_at: string;
   created_at_ml: string;
 }
@@ -207,7 +211,10 @@ function AnunciosPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [accountFilter, setAccountFilter] = useState('');
+  const [platformFilter, setPlatformFilter] = useState('');
   const [accounts, setAccounts] = useState<MercadoLivreAccount[]>([]);
+  const [shopeeAccounts, setShopeeAccounts] = useState<{ id: number; shop_name: string }[]>([]);
+  const [showSyncShopeeModal, setShowSyncShopeeModal] = useState(false);
   const [selectedListings, setSelectedListings] = useState<number[]>([]);
   const [generatingPDF, setGeneratingPDF] = useState<number | null>(null);
   const [generatingMassPDF, setGeneratingMassPDF] = useState(false);
@@ -219,29 +226,32 @@ function AnunciosPageContent() {
       nextPage: number,
       nextSearch: string = searchTerm,
       nextStatus: string = statusFilter,
-      nextAccount: string = accountFilter
+      nextAccount: string = accountFilter,
+      nextPlatform: string = platformFilter
     ) => {
       const params = new URLSearchParams();
       params.set('page', String(nextPage));
       if (nextSearch) params.set('search', nextSearch);
       if (nextStatus) params.set('status', nextStatus);
       if (nextAccount) params.set('accountId', nextAccount);
+      if (nextPlatform) params.set('platform', nextPlatform);
       return params.toString();
     },
-    [searchTerm, statusFilter, accountFilter]
+    [searchTerm, statusFilter, accountFilter, platformFilter]
   );
 
   const updateRoute = useCallback(
-    (nextPage: number, nextSearch?: string, nextStatus?: string, nextAccount?: string) => {
+    (nextPage: number, nextSearch?: string, nextStatus?: string, nextAccount?: string, nextPlatform?: string) => {
       const query = buildQueryString(
         nextPage,
         nextSearch ?? searchTerm,
         nextStatus ?? statusFilter,
-        nextAccount ?? accountFilter
+        nextAccount ?? accountFilter,
+        nextPlatform ?? platformFilter
       );
       router.replace(`/anuncios?${query}`);
     },
-    [router, buildQueryString, searchTerm, statusFilter, accountFilter]
+    [router, buildQueryString, searchTerm, statusFilter, accountFilter, platformFilter]
   );
 
   const loadListingsPage = useCallback(
@@ -257,7 +267,8 @@ function AnunciosPageContent() {
         if (searchTerm) qs.set('search', searchTerm);
         if (statusFilter) qs.set('status', statusFilter);
         if (accountFilter) qs.set('accountId', accountFilter);
-        const response = await fetch(`/api/mercadolivre/listings?${qs.toString()}`);
+        if (platformFilter) qs.set('platform', platformFilter);
+        const response = await fetch(`/api/anuncios/list?${qs.toString()}`);
         let data: any = null; let fallbackText = ''; try { data = await response.json(); } catch (_) { try { fallbackText = await response.text(); } catch {} }
         if (!response.ok) { throw new Error(`HTTP ${response.status}${fallbackText ? `: ${fallbackText}` : ''}` ); } 
           const fetchedListings: Listing[] = data.listings || [];
@@ -270,7 +281,7 @@ function AnunciosPageContent() {
         setLoadingListings(false);
       }
     },
-    [usuario?.id, searchTerm, statusFilter, accountFilter, perPage]
+    [usuario?.id, searchTerm, statusFilter, accountFilter, platformFilter, perPage]
   );
 
   useEffect(() => {
@@ -307,6 +318,9 @@ function AnunciosPageContent() {
 
     const nextAccount = searchParams.get('accountId') || '';
     setAccountFilter(prev => (prev === nextAccount ? prev : nextAccount));
+
+    const nextPlatform = searchParams.get('platform') || '';
+    setPlatformFilter(prev => (prev === nextPlatform ? prev : nextPlatform));
   }, [usuario?.id, searchParams]);
 
   // Carregar página atual quando usuário ou página mudarem
@@ -329,10 +343,26 @@ function AnunciosPageContent() {
       }
     };
 
+    const fetchShopeeAccounts = async () => {
+      try {
+        const response = await fetch(`/api/shopee/accounts?userId=${usuario.id}`);
+        const data = await response.json();
+        if (response.ok) setShopeeAccounts(data.accounts || []);
+      } catch (error) {
+        console.error('Erro ao carregar lojas Shopee:', error);
+      }
+    };
+
     fetchAccounts();
+    fetchShopeeAccounts();
   }, [usuario?.id]);
 
   const handleSyncComplete = () => {
+    setPage(1);
+    updateRoute(1);
+  };
+
+  const handleSyncShopeeComplete = () => {
     setPage(1);
     updateRoute(1);
   };
@@ -366,14 +396,22 @@ function AnunciosPageContent() {
     updateRoute(1, undefined, statusFilter, value);
   };
 
+  const handlePlatformFilterChange = (value: string) => {
+    setPlatformFilter(value);
+    setAccountFilter(''); // conta pertence a uma origem só; limpa ao trocar plataforma
+    setPage(1);
+    updateRoute(1, undefined, statusFilter, '', value);
+  };
+
   const clearFilters = () => {
-    if (!searchTerm && !statusFilter && !accountFilter) return;
+    if (!searchTerm && !statusFilter && !accountFilter && !platformFilter) return;
     setSearchInput('');
     setSearchTerm('');
     setStatusFilter('');
     setAccountFilter('');
+    setPlatformFilter('');
     setPage(1);
-    updateRoute(1, '', '', '');
+    updateRoute(1, '', '', '', '');
   };
 
   const handleSearchChange = useCallback((value: string) => {
@@ -489,9 +527,15 @@ function AnunciosPageContent() {
   );
 
   const filtersApplied = useMemo(
-    () => Boolean(searchTerm || statusFilter || accountFilter),
-    [searchTerm, statusFilter, accountFilter]
+    () => Boolean(searchTerm || statusFilter || accountFilter || platformFilter),
+    [searchTerm, statusFilter, accountFilter, platformFilter]
   );
+
+  const platformDropdownOptions = useMemo<DropdownOption[]>(() => [
+    { value: '', label: 'Todas as plataformas' },
+    { value: 'mercadolivre', label: 'Mercado Livre' },
+    { value: 'shopee', label: 'Shopee' },
+  ], []);
 
   const statusDropdownOptions = useMemo<DropdownOption[]>(() => {
     const base: DropdownOption[] = [
@@ -509,14 +553,25 @@ function AnunciosPageContent() {
     return [...base, ...extras];
   }, [statusOptions, statusLabels]);
 
-  const accountDropdownOptions = useMemo<DropdownOption[]>(() => [
-    { value: '', label: 'Todas as contas' },
-    ...accounts.map((account) => ({
-      value: String(account.id),
-      label: account.nickname || account.email || `Conta #${account.id}`,
-      description: account.email || undefined,
-    })),
-  ], [accounts]);
+  const accountDropdownOptions = useMemo<DropdownOption[]>(() => {
+    if (platformFilter === 'shopee') {
+      return [
+        { value: '', label: 'Todas as lojas' },
+        ...shopeeAccounts.map((account) => ({
+          value: `shopee:${account.id}`,
+          label: account.shop_name || `Loja #${account.id}`,
+        })),
+      ];
+    }
+    return [
+      { value: '', label: 'Todas as contas' },
+      ...accounts.map((account) => ({
+        value: `ml:${account.id}`,
+        label: account.nickname || account.email || `Conta #${account.id}`,
+        description: account.email || undefined,
+      })),
+    ];
+  }, [accounts, shopeeAccounts, platformFilter]);
 
   const toggleListingSelection = (listingId: number) => {
     setSelectedListings(prev =>
@@ -600,7 +655,7 @@ function AnunciosPageContent() {
                 uma visão clara e centralizada.
               </p>
             </div>
-            <div>
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowSyncModal(true)}
                 className="group px-8 py-3.5 bg-[#2F4F7F] text-white rounded-xl hover:bg-[#253B65] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center"
@@ -608,7 +663,16 @@ function AnunciosPageContent() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                 </svg>
-                Sincronizar
+                Sincronizar ML
+              </button>
+              <button
+                onClick={() => setShowSyncShopeeModal(true)}
+                className="group px-8 py-3.5 bg-[#EE4D2D] text-white rounded-xl hover:bg-[#d8431f] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+                Sincronizar Shopee
               </button>
             </div>
           </div>
@@ -714,6 +778,14 @@ function AnunciosPageContent() {
                       </label>
                     </form>
                     <div className="flex flex-col sm:flex-row sm:items-stretch gap-3 w-full xl:w-auto">
+                      <FilterDropdown
+                        label="Plataforma"
+                        placeholder="Todas as plataformas"
+                        value={platformFilter}
+                        options={platformDropdownOptions}
+                        onChange={handlePlatformFilterChange}
+                        className="flex-1 sm:flex-none sm:w-44"
+                      />
                       <FilterDropdown
                         label="Status"
                         placeholder="Todos os status"
@@ -869,11 +941,21 @@ function AnunciosPageContent() {
                             {/* Conta */}
                             <div className="pt-3 border-t border-neutral-100">
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-yellow-400/20 rounded-md flex items-center justify-center text-neutral-900 font-semibold text-xs">
-                                  {listing.account_first_name?.charAt(0) || listing.account_nickname?.charAt(0) || 'M'}
+                                <div
+                                  className={`w-6 h-6 rounded-md flex items-center justify-center font-semibold text-xs ${
+                                    listing.platform === 'shopee'
+                                      ? 'bg-orange-100 text-[#EE4D2D]'
+                                      : 'bg-yellow-400/20 text-neutral-900'
+                                  }`}
+                                >
+                                  {listing.platform === 'shopee'
+                                    ? listing.shopee_shop_name?.charAt(0) || 'S'
+                                    : listing.account_first_name?.charAt(0) || listing.ml_account_nickname?.charAt(0) || listing.account_nickname?.charAt(0) || 'M'}
                                 </div>
                                 <span className="text-[11px] text-neutral-600 truncate">
-                                  @{listing.account_nickname}
+                                  {listing.platform === 'shopee'
+                                    ? listing.shopee_shop_name || 'Loja Shopee'
+                                    : `@${listing.ml_account_nickname || listing.account_nickname}`}
                                 </span>
                               </div>
                             </div>
@@ -963,6 +1045,14 @@ function AnunciosPageContent() {
           onClose={() => setShowSyncModal(false)}
           userId={usuario.id}
           onSyncComplete={handleSyncComplete}
+        />
+      )}
+      {usuario && (
+        <SyncShopeeModal
+          isOpen={showSyncShopeeModal}
+          onClose={() => setShowSyncShopeeModal(false)}
+          userId={usuario.id}
+          onSyncComplete={handleSyncShopeeComplete}
         />
       )}
     </div>

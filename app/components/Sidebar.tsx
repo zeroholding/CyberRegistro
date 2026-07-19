@@ -66,6 +66,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </svg>
       ),
     },
+
     {
       name: 'Registro',
       href: '/registro',

@@ -19,6 +19,14 @@ interface MLAccount {
   created_at: string;
 }
 
+interface ShopeeAccount {
+  id: number;
+  shop_id: number;
+  shop_name: string;
+  expires_at: string;
+  created_at: string;
+}
+
 export default function ContasConectadas() {
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +39,14 @@ export default function ContasConectadas() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<MLAccount | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Shopee
+  const [shopeeAccounts, setShopeeAccounts] = useState<ShopeeAccount[]>([]);
+  const [loadingShopeeAccounts, setLoadingShopeeAccounts] = useState(true);
+  const [connectingShopeeAccount, setConnectingShopeeAccount] = useState(false);
+  const [showShopeeDeleteModal, setShowShopeeDeleteModal] = useState(false);
+  const [shopeeAccountToDelete, setShopeeAccountToDelete] = useState<ShopeeAccount | null>(null);
+  const [isDeletingShopee, setIsDeletingShopee] = useState(false);
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -59,8 +75,80 @@ export default function ContasConectadas() {
   useEffect(() => {
     if (usuario?.id) {
       loadAccounts();
+      loadShopeeAccounts();
     }
   }, [usuario]);
+
+  const loadShopeeAccounts = async () => {
+    if (!usuario?.id) return;
+    try {
+      setLoadingShopeeAccounts(true);
+      const response = await fetch(`/api/shopee/accounts?userId=${usuario.id}`);
+      const data = await response.json();
+      if (response.ok) {
+        setShopeeAccounts(data.accounts || []);
+      } else {
+        console.error('Erro ao carregar lojas Shopee:', data.error);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar lojas Shopee:', error);
+    } finally {
+      setLoadingShopeeAccounts(false);
+    }
+  };
+
+  const handleConnectShopeeAccount = async () => {
+    if (!usuario?.id) return;
+    try {
+      setConnectingShopeeAccount(true);
+      const response = await fetch(`/api/auth/shopee?userId=${usuario.id}`);
+      const data = await response.json();
+
+      if (response.ok && data.authUrl) {
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        window.open(data.authUrl, 'Conectar Shopee', `width=${width},height=${height},left=${left},top=${top}`);
+      } else {
+        showToast(data.error || 'Erro ao gerar URL de autenticação da Shopee', 'error');
+        setConnectingShopeeAccount(false);
+      }
+    } catch (error) {
+      console.error('Erro ao conectar loja Shopee:', error);
+      showToast('Erro ao conectar loja Shopee', 'error');
+      setConnectingShopeeAccount(false);
+    }
+  };
+
+  const handleDeleteShopeeAccount = (account: ShopeeAccount) => {
+    setShopeeAccountToDelete(account);
+    setShowShopeeDeleteModal(true);
+  };
+
+  const confirmDeleteShopeeAccount = async () => {
+    if (!shopeeAccountToDelete) return;
+    try {
+      setIsDeletingShopee(true);
+      const response = await fetch(
+        `/api/shopee/accounts?userId=${usuario.id}&accountId=${shopeeAccountToDelete.id}`,
+        { method: 'DELETE' },
+      );
+      if (response.ok) {
+        showToast('Loja Shopee desconectada com sucesso', 'success');
+        setShowShopeeDeleteModal(false);
+        setShopeeAccountToDelete(null);
+        loadShopeeAccounts();
+      } else {
+        showToast('Erro ao desconectar loja Shopee', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar loja Shopee:', error);
+      showToast('Erro ao desconectar loja Shopee', 'error');
+    } finally {
+      setIsDeletingShopee(false);
+    }
+  };
 
 
   const loadAccounts = async () => {
@@ -131,6 +219,21 @@ export default function ContasConectadas() {
           unexpected_error: 'Erro inesperado'
         };
         showToast(errorMessages[event.data.error] || event.data.error, 'error');
+      } else if (event.data.type === 'SHOPEE_AUTH_SUCCESS') {
+        console.log('✅ Loja Shopee conectada!');
+        setConnectingShopeeAccount(false);
+        loadShopeeAccounts();
+        showToast('Loja Shopee conectada com sucesso', 'success');
+      } else if (event.data.type === 'SHOPEE_AUTH_ERROR') {
+        console.error('❌ Erro na autenticação Shopee:', event.data.error);
+        setConnectingShopeeAccount(false);
+        const shopeeErrorMessages: { [key: string]: string } = {
+          invalid_callback: 'Callback inválido',
+          invalid_state: 'Sessão inválida',
+          token_exchange_failed: 'Falha ao obter token da Shopee',
+          unexpected_error: 'Erro inesperado',
+        };
+        showToast(shopeeErrorMessages[event.data.error] || event.data.error, 'error');
       }
     };
 
@@ -245,7 +348,7 @@ export default function ContasConectadas() {
                 seus anúncios e manter tudo organizado em um só lugar.
               </p>
             </div>
-            <div>
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleConnectAccount}
                 disabled={connectingAccount}
@@ -264,7 +367,29 @@ export default function ContasConectadas() {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                     </svg>
-                    Conectar Conta
+                    Conectar Mercado Livre
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleConnectShopeeAccount}
+                disabled={connectingShopeeAccount}
+                className="group px-8 py-3.5 bg-[#EE4D2D] text-white rounded-xl hover:bg-[#d8431f] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {connectingShopeeAccount ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Conectando...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Conectar Shopee
                   </>
                 )}
               </button>
@@ -404,6 +529,64 @@ export default function ContasConectadas() {
                 </div>
               </div>
             )}
+
+            {/* Lojas Shopee */}
+            <div className="mt-10">
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-neutral-900">
+                  {loadingShopeeAccounts
+                    ? 'Carregando lojas Shopee...'
+                    : `${shopeeAccounts.length} ${shopeeAccounts.length === 1 ? 'loja Shopee conectada' : 'lojas Shopee conectadas'}`}
+                </h2>
+              </div>
+
+              {!loadingShopeeAccounts && shopeeAccounts.length > 0 && (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {shopeeAccounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="group relative bg-white rounded-xl border border-neutral-200 p-4 hover:border-neutral-300 transition-all duration-200"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-[#EE4D2D] font-semibold text-base flex-shrink-0">
+                          {account.shop_name?.charAt(0) || 'S'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-neutral-900 truncate">
+                                {account.shop_name || `Loja ${account.shop_id}`}
+                              </h3>
+                              <p className="text-xs text-neutral-500 truncate">Shop ID: {account.shop_id}</p>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteShopeeAccount(account)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded-md text-red-600 flex-shrink-0"
+                              title="Desconectar loja"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 mt-3">
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-700 rounded-md text-xs font-medium">
+                              <div className="w-1 h-1 bg-green-500 rounded-full"></div>
+                              Ativa
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-neutral-100">
+                        <p className="text-xs text-neutral-400">
+                          Conectada em {new Date(account.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Estilos de animação */}
@@ -488,6 +671,52 @@ export default function ContasConectadas() {
 
             <p className="text-xs text-neutral-500">
               Esta ação não pode ser desfeita. Você precisará reconectar a conta se quiser usá-la novamente.
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal de Confirmação de Delete (Shopee) */}
+      <Modal
+        isOpen={showShopeeDeleteModal}
+        onClose={() => !isDeletingShopee && setShowShopeeDeleteModal(false)}
+        title="Desconectar Loja Shopee"
+        maxWidth="sm"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowShopeeDeleteModal(false)}
+              disabled={isDeletingShopee}
+              className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900 transition-colors font-medium disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDeleteShopeeAccount}
+              disabled={isDeletingShopee}
+              className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+            >
+              {isDeletingShopee ? 'Desconectando...' : 'Desconectar'}
+            </button>
+          </div>
+        }
+      >
+        {shopeeAccountToDelete && (
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-600">Tem certeza que deseja desconectar a loja?</p>
+            <div className="flex items-center gap-3 p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-[#EE4D2D] font-semibold text-base">
+                {shopeeAccountToDelete.shop_name?.charAt(0) || 'S'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold text-neutral-900 truncate">
+                  {shopeeAccountToDelete.shop_name || `Loja ${shopeeAccountToDelete.shop_id}`}
+                </h4>
+                <p className="text-xs text-neutral-500 truncate">Shop ID: {shopeeAccountToDelete.shop_id}</p>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Esta ação não pode ser desfeita. Você precisará reconectar a loja se quiser usá-la novamente.
             </p>
           </div>
         )}
