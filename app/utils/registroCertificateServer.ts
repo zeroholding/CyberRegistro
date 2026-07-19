@@ -604,10 +604,10 @@ export async function generateRegistroCertificatePDFServer(
   const payloadStr = `${input.mlbCode}|${autorNomeValue}|${titularNomeValue}|${ts}`;
   const hash = await sha256Hex(payloadStr);
   const verifyUrl = hash
-    ? `https://cyberregistro.com/verify?mlb=${encodeURIComponent(
+    ? `https://www.cyberregistro.com.br/verify?mlb=${encodeURIComponent(
         input.mlbCode
       )}&ts=${encodeURIComponent(ts)}&h=${hash}`
-    : input.permalink || "https://cyberregistro.com";
+    : input.permalink || "https://www.cyberregistro.com.br";
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(
     verifyUrl
   )}`;
