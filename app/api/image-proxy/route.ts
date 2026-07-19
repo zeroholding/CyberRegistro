@@ -12,6 +12,10 @@ const ALLOWED_HOSTS = [
   'mercadolibre.cl',
   'mercadolibre.com.co',
   'mercadolibre.com.pe',
+  // Shopee CDN domains (product pictures)
+  'susercontent.com',
+  'shopee.com.br',
+  'shopee.com',
 ];
 
 function isAllowedHost(url: URL) {
