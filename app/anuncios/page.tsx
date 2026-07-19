@@ -962,7 +962,13 @@ function AnunciosPageContent() {
 
                             {/* Data */}
                             <div className="mt-1.5 text-[11px] text-neutral-400">
-                              Criado em {new Date(listing.created_at_ml).toLocaleDateString('pt-BR')}
+                              {(() => {
+                                const raw = listing.created_at_ml;
+                                if (!raw) return 'Data não informada';
+                                const d = new Date(raw);
+                                if (isNaN(d.getTime()) || d.getFullYear() < 2000) return 'Data não informada';
+                                return `Criado em ${d.toLocaleDateString('pt-BR')}`;
+                              })()}
                             </div>
                           </div>
                         </a>

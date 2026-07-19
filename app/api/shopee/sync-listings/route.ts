@@ -82,14 +82,14 @@ export async function POST(request: NextRequest) {
               const items: ShopeeItem[] = await getShopeeItemBaseInfo(shopId, account.access_token, batchIds);
               if (items.length === 0) continue;
 
-              const valuesPerRow = 10;
+              const valuesPerRow = 11;
               const params: any[] = [];
               const valuesChunks: string[] = [];
               for (let j = 0; j < items.length; j++) {
                 const it = items[j];
                 const base = j * valuesPerRow;
                 valuesChunks.push(
-                  `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, CURRENT_TIMESTAMP)`,
+                  `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, CURRENT_TIMESTAMP)`,
                 );
                 params.push(
                   Number(userId),
@@ -102,12 +102,13 @@ export async function POST(request: NextRequest) {
                   it.item_status || null,
                   buildPermalink(shopId, it.item_id),
                   'shopee',
+                  it.create_time ? new Date(it.create_time * 1000) : null,
                 );
               }
 
               const query = `INSERT INTO anuncios (
                   user_id, shopee_account_id, mlb_code, sku, title, thumbnail,
-                  price, status, permalink, platform, synced_at
+                  price, status, permalink, platform, created_at_ml, synced_at
                 ) VALUES ${valuesChunks.join(', ')}
                 ON CONFLICT (shopee_account_id, mlb_code) WHERE shopee_account_id IS NOT NULL
                 DO UPDATE SET
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
                   price = EXCLUDED.price,
                   status = EXCLUDED.status,
                   permalink = EXCLUDED.permalink,
+                  created_at_ml = COALESCE(anuncios.created_at_ml, EXCLUDED.created_at_ml),
                   synced_at = CURRENT_TIMESTAMP`;
 
               await pool.query(query, params);

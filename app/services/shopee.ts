@@ -124,6 +124,8 @@ export type ShopeeItem = {
   item_sku: string;
   item_status: string;
   description?: string;
+  create_time?: number;
+  update_time?: number;
   image?: { image_url_list?: string[] };
   price_info?: Array<{ current_price: number }>;
 };
