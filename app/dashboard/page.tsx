@@ -22,6 +22,12 @@ interface AccountStats {
   under_review: number;
 }
 
+interface ShopeeAccount {
+  id: string;
+  shop_id: string;
+  shop_name: string;
+}
+
 export default function Dashboard() {
   const [usuario, setUsuario] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +39,9 @@ export default function Dashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [totalGeralDistinct, setTotalGeralDistinct] = useState<number | null>(null);
+  const [shopeeAccounts, setShopeeAccounts] = useState<ShopeeAccount[]>([]);
+  const [shopeeStats, setShopeeStats] = useState<AccountStats[]>([]);
+  const [shopeeTotalGeral, setShopeeTotalGeral] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -67,11 +76,13 @@ export default function Dashboard() {
       };
 
       // Executar todas as requisições em paralelo
-      const [accountsRes, statsRes, creditsRes, registrosRes] = await Promise.all([
+      const [accountsRes, statsRes, creditsRes, registrosRes, shopeeAccountsRes, shopeeStatsRes] = await Promise.all([
         fetch(`/api/mercadolivre/accounts?userId=${userId}`, { headers }),
         fetch('/api/listings-stats', { headers }),
         fetch('/api/credits', { headers }),
         fetch(`/api/registro/sent?userId=${userId}`, { headers }),
+        fetch(`/api/shopee/accounts?userId=${userId}`, { headers }),
+        fetch('/api/shopee/listings-stats', { headers }),
       ]);
 
       // Processar contas conectadas
@@ -126,6 +137,33 @@ export default function Dashboard() {
       } else {
         console.error('Erro ao buscar registros:', await registrosRes.text());
       }
+
+      // Processar contas Shopee
+      if (shopeeAccountsRes.ok) {
+        const shopeeAccountsData = await shopeeAccountsRes.json();
+        setShopeeAccounts(shopeeAccountsData.accounts || []);
+      } else {
+        console.error('Erro ao buscar contas Shopee:', await shopeeAccountsRes.text());
+      }
+
+      // Processar estatísticas de anúncios Shopee
+      if (shopeeStatsRes.ok) {
+        const shopeeStatsData = await shopeeStatsRes.json();
+        const sStats = (shopeeStatsData.stats || []).map((stat: any) => ({
+          account_id: String(stat.account_id),
+          total: parseInt(stat.total) || 0,
+          active: parseInt(stat.active) || 0,
+          paused: parseInt(stat.paused) || 0,
+          under_review: parseInt(stat.under_review) || 0,
+        }));
+        setShopeeStats(sStats);
+        if (typeof shopeeStatsData.totalGeral !== 'undefined') {
+          const tg = parseInt(shopeeStatsData.totalGeral);
+          if (!isNaN(tg)) setShopeeTotalGeral(tg);
+        }
+      } else {
+        console.error('Erro ao buscar estatísticas Shopee:', await shopeeStatsRes.text());
+      }
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
     } finally {
@@ -176,6 +214,14 @@ export default function Dashboard() {
   const totalAtivos = accountsStats.reduce((acc, stat) => acc + (Number(stat.active) || 0), 0);
   const totalInativos = accountsStats.reduce((acc, stat) => acc + (Number(stat.paused) || 0), 0);
   const totalEmRevisao = accountsStats.reduce((acc, stat) => acc + (Number(stat.under_review) || 0), 0);
+
+  // Totais Shopee (contagem real e sincronizada, vinda do backend)
+  const shopeeComputedTotal = shopeeStats.reduce((acc, stat) => acc + (Number(stat.total) || 0), 0);
+  const shopeeTotalAnuncios = (typeof shopeeTotalGeral === 'number' && shopeeTotalGeral >= 0)
+    ? shopeeTotalGeral
+    : shopeeComputedTotal;
+  const shopeeTotalAtivos = shopeeStats.reduce((acc, stat) => acc + (Number(stat.active) || 0), 0);
+  const shopeeTotalInativos = shopeeStats.reduce((acc, stat) => acc + (Number(stat.paused) || 0), 0);
 
   // Log para debug
   console.log('Totais calculados:', {
@@ -443,6 +489,114 @@ export default function Dashboard() {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Shopee */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-[#EE4D2D] text-white text-xs font-bold">S</span>
+                      Shopee
+                    </h2>
+                    {shopeeAccounts.length > 0 && (
+                      <Link
+                        href="/contas-conectadas"
+                        className="text-sm text-[#EE4D2D] hover:text-[#c73f24] font-medium"
+                      >
+                        Gerenciar →
+                      </Link>
+                    )}
+                  </div>
+
+                  {shopeeAccounts.length === 0 ? (
+                    <div className="bg-white rounded-lg border border-neutral-200 p-12 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-[#EE4D2D]/10 flex items-center justify-center mx-auto mb-4">
+                        <span className="text-xl font-bold text-[#EE4D2D]">S</span>
+                      </div>
+                      <h3 className="text-base font-medium text-neutral-900 mb-2">
+                        Nenhuma loja Shopee conectada
+                      </h3>
+                      <p className="text-sm text-neutral-500 mb-6 max-w-sm mx-auto">
+                        Conecte sua loja Shopee para sincronizar anúncios e acompanhar tudo em um só lugar
+                      </p>
+                      <Link
+                        href="/contas-conectadas"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#EE4D2D] text-white text-sm font-medium rounded-lg hover:bg-[#c73f24] transition-colors"
+                      >
+                        Conectar loja
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Cards de métricas Shopee */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-lg border border-neutral-200 p-5">
+                          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Lojas</span>
+                          <p className="text-3xl font-semibold text-neutral-900 mt-2">{shopeeAccounts.length}</p>
+                          <p className="text-xs text-neutral-500 mt-2">Conectadas</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-neutral-200 p-5">
+                          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Anúncios</span>
+                          <p className="text-3xl font-semibold text-[#EE4D2D] mt-2">{shopeeTotalAnuncios.toLocaleString()}</p>
+                          <p className="text-xs text-neutral-500 mt-2">Sincronizados</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-neutral-200 p-5">
+                          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Ativos</span>
+                          <p className="text-3xl font-semibold text-green-600 mt-2">{shopeeTotalAtivos.toLocaleString()}</p>
+                          <p className="text-xs text-neutral-500 mt-2">Anúncios ativos</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-neutral-200 p-5">
+                          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Pausados</span>
+                          <p className="text-3xl font-semibold text-neutral-400 mt-2">{shopeeTotalInativos.toLocaleString()}</p>
+                          <p className="text-xs text-neutral-500 mt-2">Anúncios pausados</p>
+                        </div>
+                      </div>
+
+                      {/* Lista de lojas Shopee */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {shopeeAccounts.map((account) => {
+                          const stats = shopeeStats.find(s => s.account_id === String(account.id));
+                          return (
+                            <div
+                              key={account.id}
+                              className="bg-white border border-neutral-200 rounded-lg p-4 hover:border-[#EE4D2D]/40 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-[#EE4D2D]/10 rounded-lg flex items-center justify-center">
+                                  <span className="text-base font-semibold text-[#EE4D2D]">
+                                    {account.shop_name?.charAt(0)?.toUpperCase() || 'S'}
+                                  </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-medium text-neutral-900 truncate text-sm">
+                                    {account.shop_name || `Loja ${account.shop_id}`}
+                                  </h3>
+                                  <p className="text-xs text-neutral-500 truncate">ID {account.shop_id}</p>
+                                </div>
+                              </div>
+
+                              {stats && (
+                                <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs text-neutral-500 mb-1">Total</div>
+                                    <div className="text-lg font-semibold text-neutral-900">{stats.total}</div>
+                                  </div>
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs text-neutral-500 mb-1">Ativos</div>
+                                    <div className="text-lg font-semibold text-green-600">{stats.active}</div>
+                                  </div>
+                                  <div className="text-center flex-1">
+                                    <div className="text-xs text-neutral-500 mb-1">Pausados</div>
+                                    <div className="text-lg font-semibold text-neutral-400">{stats.paused}</div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

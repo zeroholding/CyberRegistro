@@ -15,9 +15,22 @@ interface CertItem {
   registro_gerado_em: string | null;
   registro_hash: string | null;
   has_pdf: boolean;
+  platform?: 'mercadolivre' | 'shopee' | null;
   account_nickname?: string | null;
   account_first_name?: string | null;
   account_last_name?: string | null;
+  shopee_shop_name?: string | null;
+}
+
+interface MLAccountOption {
+  id: number;
+  nickname?: string | null;
+  email?: string | null;
+}
+
+interface ShopeeAccountOption {
+  id: number;
+  shop_name?: string | null;
 }
 
 function CertificadosPageContent() {
@@ -28,9 +41,13 @@ function CertificadosPageContent() {
   const [items, setItems] = useState<CertItem[]>([]);
   const [total, setTotal] = useState(0);
   const [usuario, setUsuario] = useState<any>(null);
+  const [mlAccounts, setMlAccounts] = useState<MLAccountOption[]>([]);
+  const [shopeeAccounts, setShopeeAccounts] = useState<ShopeeAccountOption[]>([]);
 
   const page = useMemo(() => parseInt(params.get('page') || '1', 10) || 1, [params]);
   const search = useMemo(() => (params.get('search') || '').trim(), [params]);
+  const platformFilter = useMemo(() => (params.get('platform') || '').trim(), [params]);
+  const accountFilter = useMemo(() => (params.get('accountId') || '').trim(), [params]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -60,7 +77,10 @@ function CertificadosPageContent() {
     if (!userId) return;
 
     const perPage = 24;
-    const url = `/api/registro/history?userId=${userId}&page=${page}&perPage=${perPage}` + (search ? `&search=${encodeURIComponent(search)}` : '');
+    let url = `/api/registro/history?userId=${userId}&page=${page}&perPage=${perPage}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (platformFilter) url += `&platform=${encodeURIComponent(platformFilter)}`;
+    if (accountFilter) url += `&accountId=${encodeURIComponent(accountFilter)}`;
     fetch(url).then(async (res) => {
       const data = await res.json();
       if (res.ok) {
@@ -68,7 +88,43 @@ function CertificadosPageContent() {
         setTotal(data.total || 0);
       }
     }).catch(() => {});
-  }, [page, search]);
+  }, [page, search, platformFilter, accountFilter]);
+
+  // Carregar contas (ML + Shopee) para o filtro
+  useEffect(() => {
+    if (!usuario?.id) return;
+    const load = async () => {
+      try {
+        const [mlRes, shopeeRes] = await Promise.all([
+          fetch(`/api/mercadolivre/accounts?userId=${usuario.id}`),
+          fetch(`/api/shopee/accounts?userId=${usuario.id}`),
+        ]);
+        if (mlRes.ok) {
+          const d = await mlRes.json();
+          setMlAccounts(d.accounts || []);
+        }
+        if (shopeeRes.ok) {
+          const d = await shopeeRes.json();
+          setShopeeAccounts(d.accounts || []);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar contas para filtro:', e);
+      }
+    };
+    load();
+  }, [usuario?.id]);
+
+  const applyFilters = (next: { platform?: string; accountId?: string; search?: string }) => {
+    const sp = new URLSearchParams();
+    const nextSearch = next.search !== undefined ? next.search : search;
+    const nextPlatform = next.platform !== undefined ? next.platform : platformFilter;
+    const nextAccount = next.accountId !== undefined ? next.accountId : accountFilter;
+    if (nextSearch) sp.set('search', nextSearch);
+    if (nextPlatform) sp.set('platform', nextPlatform);
+    if (nextAccount) sp.set('accountId', nextAccount);
+    sp.set('page', '1');
+    router.replace(`/certificados?${sp.toString()}`);
+  };
 
   const handleDownload = async (it: CertItem) => {
     try {
@@ -138,15 +194,63 @@ function CertificadosPageContent() {
         <Topbar onMenuClick={() => setSidebarOpen(true)} onLogout={() => { localStorage.removeItem('token'); router.push('/login'); }} />
         <main className="flex-1 overflow-y-auto bg-neutral-50">
           <div className="px-6 py-8 flex flex-col gap-4">
-            <div className="flex items-end justify-between">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold text-neutral-900">Certificados</h1>
-                <p className="text-sm text-neutral-500 mt-1">Histórico de certificados gerados</p>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Histórico de certificados gerados{total > 0 ? ` · ${total} ${total === 1 ? 'certificado' : 'certificados'}` : ''}
+                </p>
               </div>
-              <div className="hidden md:block">
-                <form action="/certificados" className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                {/* Filtro de plataforma */}
+                <select
+                  value={platformFilter}
+                  onChange={(e) => applyFilters({ platform: e.target.value, accountId: '' })}
+                  className="px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)] focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                >
+                  <option value="">Todas as plataformas</option>
+                  <option value="mercadolivre">Mercado Livre</option>
+                  <option value="shopee">Shopee</option>
+                </select>
+
+                {/* Filtro de conta */}
+                <select
+                  value={accountFilter}
+                  onChange={(e) => applyFilters({ accountId: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)] focus:outline-none focus:ring-2 focus:ring-neutral-900/10 max-w-[220px]"
+                >
+                  <option value="">Todas as contas</option>
+                  {platformFilter !== 'shopee' && mlAccounts.length > 0 && (
+                    <optgroup label="Mercado Livre">
+                      {mlAccounts.map((a) => (
+                        <option key={`ml:${a.id}`} value={`ml:${a.id}`}>
+                          {a.nickname || a.email || `Conta #${a.id}`}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {platformFilter !== 'mercadolivre' && shopeeAccounts.length > 0 && (
+                    <optgroup label="Shopee">
+                      {shopeeAccounts.map((a) => (
+                        <option key={`shopee:${a.id}`} value={`shopee:${a.id}`}>
+                          {a.shop_name || `Loja #${a.id}`}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+
+                {/* Busca */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const value = (new FormData(e.currentTarget).get('search') as string || '').trim();
+                    applyFilters({ search: value });
+                  }}
+                  className="flex items-center gap-2"
+                >
                   <input name="search" defaultValue={search} placeholder="Buscar por título ou MLB" className="px-3 py-2 rounded-lg border border-neutral-200 bg-white/90 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.08)] focus:outline-none focus:ring-2 focus:ring-neutral-900/10" />
-                  <button className="px-4 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors">Buscar</button>
+                  <button className="px-4 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors whitespace-nowrap">Buscar</button>
                 </form>
               </div>
             </div>
@@ -192,32 +296,89 @@ function CertificadosPageContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {items.map((it) => (
-                  <div key={it.id} className="rounded-xl border border-neutral-200 bg-white p-4 flex gap-3">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-neutral-100 flex items-center justify-center">
-                      {it.thumbnail ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={it.thumbnail} alt={it.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <svg className="w-6 h-6 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18"/></svg>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-neutral-900 truncate" title={it.title}>{it.title}</div>
-                      <div className="text-xs text-neutral-500 mt-0.5">{it.mlb_code}</div>
-                      {it.account_nickname && (
-                        <div className="text-xs text-blue-600 font-medium mt-0.5">@{it.account_nickname}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs font-medium flex items-center gap-1">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                          Certificado Gerado
+                {items.map((it) => {
+                  const isShopee = it.platform === 'shopee';
+                  const accentColor = isShopee ? '#EE4D2D' : '#2F4F7F';
+                  const accountLabel = isShopee
+                    ? (it.shopee_shop_name || 'Loja Shopee')
+                    : (it.account_nickname ? `@${it.account_nickname}` : null);
+                  return (
+                    <div
+                      key={it.id}
+                      className="group flex flex-col rounded-xl border border-neutral-200 bg-white overflow-hidden hover:border-neutral-300 hover:shadow-sm transition-all"
+                    >
+                      {/* Cabeçalho: thumbnail + título */}
+                      <div className="flex gap-3 p-4">
+                        <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-100 flex items-center justify-center">
+                          {it.thumbnail ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={it.thumbnail} alt={it.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <svg className="w-6 h-6 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18"/></svg>
+                          )}
                         </div>
-                        <a href={it.permalink || '#'} target="_blank" rel="noreferrer" className="text-xs text-[#2F4F7F] hover:underline">Abrir anúncio</a>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide text-white"
+                              style={{ backgroundColor: accentColor }}
+                            >
+                              {isShopee ? 'Shopee' : 'ML'}
+                            </span>
+                            <span className="text-[11px] text-neutral-400 truncate">{it.mlb_code}</span>
+                          </div>
+                          <div
+                            className="text-sm font-semibold text-neutral-900 leading-snug line-clamp-2"
+                            title={it.title}
+                          >
+                            {it.title}
+                          </div>
+                          {accountLabel && (
+                            <div
+                              className="text-xs font-medium mt-1 truncate"
+                              style={{ color: accentColor }}
+                            >
+                              {accountLabel}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Corpo: status + data + hash */}
+                      <div className="px-4 pb-3 flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs font-medium flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                            Certificado Gerado
+                          </div>
+                          <span className="text-[11px] text-neutral-500 whitespace-nowrap">{formatDateTime(it.registro_gerado_em)}</span>
+                        </div>
+                        {it.registro_hash && (
+                          <div className="flex items-center gap-2">
+                            <code className="text-[11px] px-2 py-1 bg-neutral-100 text-neutral-700 rounded truncate flex-1 min-w-0">{it.registro_hash.slice(0, 24)}…</code>
+                            <button
+                              className="text-[11px] text-neutral-600 hover:text-neutral-900 whitespace-nowrap"
+                              onClick={() => navigator.clipboard.writeText(it.registro_hash || '')}
+                            >Copiar</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Rodapé: ações */}
+                      <div className="mt-auto flex items-center gap-2 px-4 py-3 border-t border-neutral-100 bg-neutral-50/50">
+                        <a
+                          href={it.permalink || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-medium hover:underline"
+                          style={{ color: accentColor }}
+                        >
+                          Abrir anúncio
+                        </a>
                         <button
                           type="button"
                           onClick={() => handleDownload(it)}
-                          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+                          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-white hover:border-neutral-300 transition-colors"
                           title="Baixar certificado (PDF)"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,19 +387,9 @@ function CertificadosPageContent() {
                           Baixar
                         </button>
                       </div>
-                      <div className="text-xs text-neutral-500 mt-1">Gerado em: {formatDateTime(it.registro_gerado_em)}</div>
-                      {it.registro_hash && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <code className="text-[11px] px-2 py-1 bg-neutral-100 text-neutral-700 rounded">{it.registro_hash.slice(0, 16)}…</code>
-                          <button
-                            className="text-xs text-neutral-600 hover:text-neutral-900"
-                            onClick={() => navigator.clipboard.writeText(it.registro_hash || '')}
-                          >Copiar hash</button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -651,7 +651,7 @@ function AnunciosPageContent() {
                 Anúncios
               </h1>
               <p className="text-base text-neutral-600 leading-relaxed max-w-3xl">
-                Gerencie e acompanhe seus anúncios integrados ao Mercado Livre com
+                Gerencie e acompanhe seus anúncios do Mercado Livre e da Shopee com
                 uma visão clara e centralizada.
               </p>
             </div>
@@ -858,7 +858,7 @@ function AnunciosPageContent() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5 md:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
 
 
                   {listings.map((listing) => {
@@ -921,28 +921,30 @@ function AnunciosPageContent() {
                           </div>
 
                           {/* Conteudo */}
-                          <div className="p-3">
+                          <div className="p-3.5">
                             {/* Codigo MLB */}
-                            <div className="text-xs font-mono text-neutral-500 mb-2">
+                            <div className="text-[11px] font-mono text-neutral-400 mb-1.5 truncate">
                               {listing.mlb_code}
                             </div>
 
                             {/* Titulo */}
-                            <h3 className="text-[11px] font-semibold text-neutral-900 mb-1.5 line-clamp-2 group-hover:text-yellow-600 transition-colors">
+                            <h3 className="text-[13px] leading-snug font-semibold text-neutral-900 mb-2 line-clamp-2 min-h-[2.4em] group-hover:text-[#2F4F7F] transition-colors">
                               {listing.title}
                             </h3>
 
-                            {/* Preco */}
                             {/* Informacoes adicionais */}
-                            <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-2.5">
-                              <span>Vendidos: {listing.sold_quantity}</span>
+                            <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-3">
+                              <span className="inline-flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                Vendidos: {listing.sold_quantity ?? 0}
+                              </span>
                             </div>
 
                             {/* Conta */}
                             <div className="pt-3 border-t border-neutral-100">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className={`w-6 h-6 rounded-md flex items-center justify-center font-semibold text-xs ${
+                                  className={`w-6 h-6 flex-shrink-0 rounded-md flex items-center justify-center font-semibold text-xs ${
                                     listing.platform === 'shopee'
                                       ? 'bg-orange-100 text-[#EE4D2D]'
                                       : 'bg-yellow-400/20 text-neutral-900'
@@ -961,7 +963,7 @@ function AnunciosPageContent() {
                             </div>
 
                             {/* Data */}
-                            <div className="mt-1.5 text-[11px] text-neutral-400">
+                            <div className="mt-2 text-[11px] text-neutral-400">
                               {(() => {
                                 const raw = listing.created_at_ml;
                                 if (!raw) return 'Data não informada';

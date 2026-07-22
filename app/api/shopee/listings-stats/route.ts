@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { verify } from 'jsonwebtoken';
 
+/**
+ * Estatísticas de anúncios da Shopee, lendo da MESMA tabela `anuncios`
+ * (platform = 'shopee'). Espelha /api/listings-stats do Mercado Livre.
+ * A contagem é REAL e sincronizada: o sync usa ON CONFLICT DO UPDATE, então
+ * cada item existe uma única vez por loja (não grava histórico duplicado).
+ */
 export async function GET(req: NextRequest) {
   try {
-    // Autenticação e identificação do usuário
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
     if (!token) {
@@ -18,35 +23,29 @@ export async function GET(req: NextRequest) {
       userId = decoded?.id;
       if (!userId) throw new Error('Token sem id');
     } catch (error) {
-      console.error('Erro ao verificar token em listings-stats:', error);
+      console.error('Erro ao verificar token em shopee/listings-stats:', error);
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    // Estatísticas por conta do usuário (DISTINCT por mlb_code)
+    // Estatísticas por loja Shopee (DISTINCT por mlb_code = item_id)
     const result = await pool.query(
       `SELECT 
-        ml_account_id as account_id,
+        shopee_account_id as account_id,
         COUNT(DISTINCT mlb_code)::int as total,
         COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'active')::int as active,
         COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'paused')::int as paused,
         COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'under_review')::int as under_review
        FROM anuncios 
-       WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'mercadolivre'
-       GROUP BY ml_account_id`,
+       WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'shopee'
+       GROUP BY shopee_account_id`,
       [userId]
     );
 
-    // Log para debug
-    console.log('Estatísticas por conta:', result.rows);
-
-    // Verificar total geral (apenas Mercado Livre — Shopee tem endpoint próprio)
     const totalGeral = await pool.query(
-      `SELECT COUNT(DISTINCT mlb_code)::int as total FROM anuncios WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'mercadolivre'`,
+      `SELECT COUNT(DISTINCT mlb_code)::int as total FROM anuncios WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'shopee'`,
       [userId]
     );
-    console.log('Total geral de anúncios únicos:', totalGeral.rows[0]);
 
-    // Converter strings para números
     const stats = result.rows.map((row: any) => ({
       account_id: row.account_id,
       total: parseInt(row.total) || 0,
@@ -61,7 +60,7 @@ export async function GET(req: NextRequest) {
       totalGeral: parseInt(totalGeral.rows[0]?.total) || 0,
     });
   } catch (error) {
-    console.error('Erro ao buscar estatísticas de anúncios:', error);
+    console.error('Erro ao buscar estatísticas de anúncios Shopee:', error);
     return NextResponse.json(
       { erro: 'Erro ao buscar estatísticas' },
       { status: 500 }
