@@ -41,7 +41,6 @@ export default function Dashboard() {
   const [totalGeralDistinct, setTotalGeralDistinct] = useState<number | null>(null);
   const [shopeeAccounts, setShopeeAccounts] = useState<ShopeeAccount[]>([]);
   const [shopeeStats, setShopeeStats] = useState<AccountStats[]>([]);
-  const [shopeeTotalGeral, setShopeeTotalGeral] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -157,10 +156,6 @@ export default function Dashboard() {
           under_review: parseInt(stat.under_review) || 0,
         }));
         setShopeeStats(sStats);
-        if (typeof shopeeStatsData.totalGeral !== 'undefined') {
-          const tg = parseInt(shopeeStatsData.totalGeral);
-          if (!isNaN(tg)) setShopeeTotalGeral(tg);
-        }
       } else {
         console.error('Erro ao buscar estatísticas Shopee:', await shopeeStatsRes.text());
       }
@@ -215,11 +210,7 @@ export default function Dashboard() {
   const totalInativos = accountsStats.reduce((acc, stat) => acc + (Number(stat.paused) || 0), 0);
   const totalEmRevisao = accountsStats.reduce((acc, stat) => acc + (Number(stat.under_review) || 0), 0);
 
-  // Totais Shopee (contagem real e sincronizada, vinda do backend)
-  const shopeeComputedTotal = shopeeStats.reduce((acc, stat) => acc + (Number(stat.total) || 0), 0);
-  const shopeeTotalAnuncios = (typeof shopeeTotalGeral === 'number' && shopeeTotalGeral >= 0)
-    ? shopeeTotalGeral
-    : shopeeComputedTotal;
+  // Totais Shopee — anúncios "reais" = ativos (pausados/inativos ficam só como detalhe)
   const shopeeTotalAtivos = shopeeStats.reduce((acc, stat) => acc + (Number(stat.active) || 0), 0);
   const shopeeTotalInativos = shopeeStats.reduce((acc, stat) => acc + (Number(stat.paused) || 0), 0);
 
@@ -389,7 +380,7 @@ export default function Dashboard() {
                     </Link>
                   </div>
 
-                  {/* Card Anúncios */}
+                  {/* Card Anúncios (ativos = anúncios reais) */}
                   <div className="bg-white rounded-lg border border-neutral-200 p-5">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Anúncios</span>
@@ -397,8 +388,8 @@ export default function Dashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                       </svg>
                     </div>
-                    <p className="text-3xl font-semibold text-neutral-900">{totalAnuncios}</p>
-                    <p className="text-xs text-neutral-500 mt-2">Total</p>
+                    <p className="text-3xl font-semibold text-neutral-900">{totalAtivos.toLocaleString()}</p>
+                    <p className="text-xs text-neutral-500 mt-2">Ativos</p>
                     <div className="mt-4 flex justify-end">
                       <Link
                         href="/anuncios"
@@ -530,8 +521,8 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {/* Cards de métricas Shopee */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Cards de métricas Shopee (Anúncios = ativos/reais) */}
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="bg-white rounded-lg border border-neutral-200 p-5">
                           <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Lojas</span>
                           <p className="text-3xl font-semibold text-neutral-900 mt-2">{shopeeAccounts.length}</p>
@@ -539,13 +530,8 @@ export default function Dashboard() {
                         </div>
                         <div className="bg-white rounded-lg border border-neutral-200 p-5">
                           <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Anúncios</span>
-                          <p className="text-3xl font-semibold text-[#EE4D2D] mt-2">{shopeeTotalAnuncios.toLocaleString()}</p>
-                          <p className="text-xs text-neutral-500 mt-2">Sincronizados</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-neutral-200 p-5">
-                          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Ativos</span>
-                          <p className="text-3xl font-semibold text-green-600 mt-2">{shopeeTotalAtivos.toLocaleString()}</p>
-                          <p className="text-xs text-neutral-500 mt-2">Anúncios ativos</p>
+                          <p className="text-3xl font-semibold text-[#EE4D2D] mt-2">{shopeeTotalAtivos.toLocaleString()}</p>
+                          <p className="text-xs text-neutral-500 mt-2">Ativos</p>
                         </div>
                         <div className="bg-white rounded-lg border border-neutral-200 p-5">
                           <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Pausados</span>
@@ -692,15 +678,15 @@ export default function Dashboard() {
                       <div className="mb-4">
                         <div className="flex items-baseline gap-2">
                           <span className="text-3xl font-bold">{registrosRealizados}</span>
-                          <span className="text-sm text-white/80">de {totalAnuncios}</span>
+                          <span className="text-sm text-white/80">de {totalAtivos}</span>
                         </div>
-                        <p className="text-xs text-white/70 mt-1">Anúncios protegidos</p>
+                        <p className="text-xs text-white/70 mt-1">Anúncios ativos protegidos</p>
                       </div>
-                      {totalAnuncios > 0 && (
+                      {totalAtivos > 0 && (
                         <div className="w-full bg-white/20 rounded-full h-2">
                           <div
                             className="bg-white h-2 rounded-full transition-all"
-                            style={{ width: `${totalAnuncios > 0 ? (registrosRealizados / totalAnuncios) * 100 : 0}%` }}
+                            style={{ width: `${totalAtivos > 0 ? Math.min(100, (registrosRealizados / totalAtivos) * 100) : 0}%` }}
                           ></div>
                         </div>
                       )}
