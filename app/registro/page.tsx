@@ -13,6 +13,10 @@ interface PdfApiData {
   title: string;
   mlbCode: string;
   permalink: string;
+  thumbnail?: string | null;
+  platform?: 'mercadolivre' | 'shopee';
+  accountKey?: string; // 'ml:3' | 'shopee:5' — usado no filtro de contas
+  accountLabel?: string; // nome amigável da conta/loja
   account?: {
     nickname?: string | null;
     firstName?: string | null;
@@ -37,6 +41,11 @@ function RegistroPageContent() {
   const [items, setItems] = useState<Record<number, PdfApiData>>({});
   const [order, setOrder] = useState<number[]>([]);
   const [generating, setGenerating] = useState<number | null>(null);
+
+  // Filtros (busca por mlb/cód shopee/título, conta e certificado gerado ou não)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [accountFilter, setAccountFilter] = useState('');
+  const [certFilter, setCertFilter] = useState<'' | 'gerado' | 'nao'>('');
 
   // Formulário: Autor/Titular e CPF/CNPJ
   const [autorNome, setAutorNome] = useState<string>('');
@@ -171,10 +180,16 @@ function RegistroPageContent() {
             const res = await fetch(`/api/anuncios/generate-pdf?id=${id}&userId=${usuario.id}`);
             if (res.ok) {
               const data = await res.json();
+              const plat = (data.platform === 'shopee' ? 'shopee' : 'mercadolivre') as 'mercadolivre' | 'shopee';
+              const accLabel = data.account?.nickname || (plat === 'shopee' ? 'Loja Shopee' : 'Conta ML');
               next[id] = {
                 title: data.title,
                 mlbCode: data.mlbCode,
                 permalink: data.permalink,
+                thumbnail: data.thumbnail,
+                platform: plat,
+                accountLabel: accLabel,
+                accountKey: `${plat}:${accLabel}`,
                 account: data.account,
                 registroEnviado: data.registroEnviado,
                 registroEnviadoEm: data.registroEnviadoEm,
@@ -192,12 +207,23 @@ function RegistroPageContent() {
             const data = await res.json();
             const anuncios = data.anuncios || [];
             for (const anuncio of anuncios) {
+              const plat = (anuncio.platform === 'shopee' ? 'shopee' : 'mercadolivre') as 'mercadolivre' | 'shopee';
+              const accLabel = plat === 'shopee'
+                ? (anuncio.shopee_shop_name || 'Loja Shopee')
+                : (anuncio.account_nickname || 'Conta ML');
+              const accKey = plat === 'shopee'
+                ? `shopee:${anuncio.shopee_account_id}`
+                : `ml:${anuncio.ml_account_id}`;
               next[anuncio.id] = {
                 title: anuncio.title,
                 mlbCode: anuncio.mlb_code,
                 permalink: anuncio.permalink,
+                thumbnail: anuncio.thumbnail,
+                platform: plat,
+                accountLabel: accLabel,
+                accountKey: accKey,
                 account: {
-                  nickname: anuncio.account_nickname,
+                  nickname: accLabel,
                   firstName: anuncio.account_first_name,
                   lastName: anuncio.account_last_name,
                 },
@@ -411,6 +437,49 @@ function RegistroPageContent() {
     }
   };
 
+  const isCertGerado = (it: PdfApiData) => it.registroStatus === 'protegido' || !!it.registroGeradoEm;
+
+  // Opções do filtro de contas, derivadas dos anúncios carregados
+  const accountOptions = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; platform: string }>();
+    for (const id of order) {
+      const it = items[id];
+      if (!it || !it.accountKey) continue;
+      if (!map.has(it.accountKey)) {
+        map.set(it.accountKey, {
+          key: it.accountKey,
+          label: it.accountLabel || it.accountKey,
+          platform: it.platform || 'mercadolivre',
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [order, items]);
+
+  // Aplica busca (mlb/cód shopee/título) + filtro de conta + filtro de certificado
+  const filteredOrder = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return order.filter((id) => {
+      const it = items[id];
+      if (!it) return false;
+      if (accountFilter && it.accountKey !== accountFilter) return false;
+      if (certFilter === 'gerado' && !isCertGerado(it)) return false;
+      if (certFilter === 'nao' && isCertGerado(it)) return false;
+      if (term) {
+        const hay = `${it.mlbCode || ''} ${it.title || ''}`.toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [order, items, searchTerm, accountFilter, certFilter]);
+
+  const filtersApplied = Boolean(searchTerm || accountFilter || certFilter);
+  const clearFilters = () => {
+    setSearchTerm('');
+    setAccountFilter('');
+    setCertFilter('');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
@@ -498,17 +567,84 @@ function RegistroPageContent() {
             ) : loadingData ? (
               <div className="rounded-xl border border-neutral-200 bg-white p-6 text-neutral-700">Carregando dados…</div>
             ) : (
+              <>
+              {/* Barra de filtros: busca + conta + certificado */}
+              <div className="mb-4 flex flex-col lg:flex-row lg:items-center gap-3">
+                <div className="relative flex-1 lg:max-w-md">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-neutral-400">
+                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12.5 11.5l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <circle cx="9" cy="9" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                  </span>
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por MLB / cód. Shopee ou título"
+                    className="w-full rounded-lg border border-neutral-200 bg-white py-2.5 pl-9 pr-3 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                  />
+                </div>
+
+                <select
+                  value={accountFilter}
+                  onChange={(e) => setAccountFilter(e.target.value)}
+                  className="px-3 py-2.5 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 max-w-[240px]"
+                >
+                  <option value="">Todas as contas</option>
+                  {accountOptions.map((a) => (
+                    <option key={a.key} value={a.key}>
+                      {a.platform === 'shopee' ? 'Shopee' : 'ML'} · {a.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={certFilter}
+                  onChange={(e) => setCertFilter(e.target.value as '' | 'gerado' | 'nao')}
+                  className="px-3 py-2.5 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                >
+                  <option value="">Certificado: todos</option>
+                  <option value="gerado">Certificado gerado</option>
+                  <option value="nao">Sem certificado</option>
+                </select>
+
+                {filtersApplied && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="px-4 py-2.5 text-sm rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-900 hover:border-neutral-300 transition-colors"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+
+                <span className="text-sm text-neutral-500 lg:ml-auto whitespace-nowrap">
+                  {filteredOrder.length} de {order.length}
+                </span>
+              </div>
+
+              {filteredOrder.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-neutral-300 bg-white/60 p-10 text-center">
+                  <p className="text-sm text-neutral-600">Nenhum anúncio encontrado com os filtros aplicados.</p>
+                  {filtersApplied && (
+                    <button onClick={clearFilters} className="mt-3 px-4 py-2 text-sm bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65]">
+                      Limpar filtros
+                    </button>
+                  )}
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {order.map((id) => {
+                {filteredOrder.map((id) => {
                   const item = items[id];
                   if (!item) return null;
                   return (
-                    <div key={id} className="group rounded-lg border border-neutral-200 bg-white p-3 flex flex-col relative min-h-[200px] hover:shadow-md transition-all duration-200">
+                    <div key={id} className="group rounded-xl border border-neutral-200 bg-white flex flex-col relative overflow-hidden hover:shadow-md transition-all duration-200">
                       {/* Botão remover */}
                       <button
                         type="button"
                         onClick={() => removeFromRegistro(id)}
-                        className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-50 rounded text-red-600 z-10"
+                        className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white/90 hover:bg-red-50 rounded-md text-red-600 z-20 shadow-sm"
                         title="Remover do ambiente de registro"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -516,42 +652,68 @@ function RegistroPageContent() {
                         </svg>
                       </button>
 
-                      {/* Badge de Crédito */}
-                      <div className="flex items-center gap-1 mb-2">
-                        {coinAnimation && (
-                          <div className="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-400/30 to-yellow-500/30 flex items-center justify-center p-0.5">
-                            <Lottie
-                              animationData={coinAnimation}
-                              loop={true}
-                              autoplay={true}
-                              style={{ width: '100%', height: '100%' }}
-                            />
+                      {/* Imagem do produto */}
+                      <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="relative block aspect-square bg-neutral-100">
+                        {item.thumbnail ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.thumbnail} alt={item.title} className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-200" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg className="w-12 h-12 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
                           </div>
                         )}
-                        <span className="text-[10px] font-semibold text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200">
-                          1 Crédito
+                        {/* Badge de plataforma */}
+                        <span
+                          className="absolute top-2 left-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide text-white shadow"
+                          style={{ backgroundColor: item.platform === 'shopee' ? '#EE4D2D' : '#2F4F7F' }}
+                        >
+                          {item.platform === 'shopee' ? 'Shopee' : 'ML'}
                         </span>
-                      </div>
+                      </a>
 
                       {/* Conteúdo do card */}
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <div className="text-[10px] text-neutral-500 font-medium">{item.mlbCode}</div>
-                        {item.account?.nickname && (
-                          <div className="text-[10px] text-blue-600 font-medium">@{item.account.nickname}</div>
-                        )}
-                        <div className="text-xs font-semibold text-neutral-900 line-clamp-2 flex-1 leading-tight">{item.title}</div>
-
-                        {item.registroStatus === 'protegido' && (
-                          <div className="flex items-center gap-1.5 text-[10px]">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">
-                              Certificado Gerado
+                      <div className="p-3 flex-1 flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[10px] text-neutral-500 font-medium truncate">{item.mlbCode}</div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {coinAnimation && (
+                              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-400/30 to-yellow-500/30 flex items-center justify-center p-0.5">
+                                <Lottie animationData={coinAnimation} loop autoplay style={{ width: '100%', height: '100%' }} />
+                              </div>
+                            )}
+                            <span className="text-[10px] font-semibold text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200">
+                              1 Crédito
                             </span>
                           </div>
+                        </div>
+                        {item.account?.nickname && (
+                          <div
+                            className="text-[10px] font-medium truncate"
+                            style={{ color: item.platform === 'shopee' ? '#EE4D2D' : '#2563eb' }}
+                          >
+                            {item.platform === 'shopee' ? item.account.nickname : `@${item.account.nickname}`}
+                          </div>
                         )}
+                        <div className="text-xs font-semibold text-neutral-900 line-clamp-2 leading-tight min-h-[2.2em]">{item.title}</div>
+
+                        <div className="mt-auto pt-1">
+                          {isCertGerado(item) ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-medium">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                              Certificado gerado
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-500 text-[10px] font-medium">
+                              Sem certificado
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Footer do card */}
-                      <div className="pt-2 mt-auto flex items-center justify-between border-t border-neutral-100">
+                      <div className="px-3 py-2.5 flex items-center justify-between border-t border-neutral-100 bg-neutral-50/50">
                         <a
                           href={item.permalink}
                           target="_blank"
@@ -564,7 +726,7 @@ function RegistroPageContent() {
                           type="button"
                           onClick={() => handleOpenGenerateModal(id)}
                           disabled={generating === id}
-                          className="rounded border border-neutral-200 px-2 py-1 text-[10px] font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50 disabled:opacity-50 transition-all"
+                          className="rounded-md border border-neutral-200 px-2.5 py-1 text-[10px] font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-white disabled:opacity-50 transition-all"
                         >
                           {generating === id ? 'Gerando…' : 'Gerar Certificado'}
                         </button>
@@ -573,6 +735,8 @@ function RegistroPageContent() {
                   );
                 })}
               </div>
+              )}
+              </>
             )}
           </div>
 
