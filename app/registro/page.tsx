@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import Lottie from 'lottie-react';
 import { useToast } from '../components/ToastContainer';
 import { generateRegistroCertificatePDF, RegistroCertificateInput } from '../utils/registroCertificate';
+import { MercadoLivreIcon, ShopeeIcon } from '../components/MarketplaceIcons';
 
 interface PdfApiData {
   title: string;
@@ -666,10 +667,12 @@ function RegistroPageContent() {
                         )}
                         {/* Badge de plataforma */}
                         <span
-                          className="absolute top-2 left-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide text-white shadow"
-                          style={{ backgroundColor: item.platform === 'shopee' ? '#EE4D2D' : '#2F4F7F' }}
+                          className="absolute top-2 left-2 inline-flex items-center justify-center w-6 h-6 rounded-md bg-white shadow ring-1 ring-black/5"
+                          title={item.platform === 'shopee' ? 'Shopee' : 'Mercado Livre'}
                         >
-                          {item.platform === 'shopee' ? 'Shopee' : 'ML'}
+                          {item.platform === 'shopee'
+                            ? <ShopeeIcon className="w-4 h-4" />
+                            : <MercadoLivreIcon className="w-4 h-4" />}
                         </span>
                       </a>
 

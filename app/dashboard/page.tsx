@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import PurchaseCreditsModal from '../components/PurchaseCreditsModal';
+import { MercadoLivreIcon, ShopeeIcon } from '../components/MarketplaceIcons';
 
 interface Account {
   id: string;
@@ -407,7 +408,8 @@ export default function Dashboard() {
                 {/* Contas Conectadas */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-neutral-900">
+                    <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+                      <MercadoLivreIcon className="w-6 h-6" />
                       Contas do Mercado Livre
                     </h2>
                     {accounts.length > 0 && (
@@ -448,10 +450,8 @@ export default function Dashboard() {
                             className="bg-white border border-neutral-200 rounded-lg p-4 hover:border-neutral-300 transition-colors"
                           >
                             <div className="flex items-center gap-3 mb-4">
-                              <div className="w-10 h-10 bg-neutral-100 rounded-lg flex items-center justify-center">
-                                <span className="text-base font-semibold text-neutral-700">
-                                  {account.first_name?.charAt(0) || account.nickname?.charAt(0) || 'M'}
-                                </span>
+                              <div className="w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-lg flex items-center justify-center">
+                                <MercadoLivreIcon className="w-6 h-6" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-medium text-neutral-900 truncate text-sm">
@@ -488,7 +488,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-[#EE4D2D] text-white text-xs font-bold">S</span>
+                      <ShopeeIcon className="w-6 h-6" />
                       Shopee
                     </h2>
                     {shopeeAccounts.length > 0 && (
@@ -504,7 +504,7 @@ export default function Dashboard() {
                   {shopeeAccounts.length === 0 ? (
                     <div className="bg-white rounded-lg border border-neutral-200 p-12 text-center">
                       <div className="w-12 h-12 rounded-xl bg-[#EE4D2D]/10 flex items-center justify-center mx-auto mb-4">
-                        <span className="text-xl font-bold text-[#EE4D2D]">S</span>
+                        <ShopeeIcon className="w-7 h-7" />
                       </div>
                       <h3 className="text-base font-medium text-neutral-900 mb-2">
                         Nenhuma loja Shopee conectada
@@ -551,9 +551,7 @@ export default function Dashboard() {
                             >
                               <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 bg-[#EE4D2D]/10 rounded-lg flex items-center justify-center">
-                                  <span className="text-base font-semibold text-[#EE4D2D]">
-                                    {account.shop_name?.charAt(0)?.toUpperCase() || 'S'}
-                                  </span>
+                                  <ShopeeIcon className="w-6 h-6" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-medium text-neutral-900 truncate text-sm">

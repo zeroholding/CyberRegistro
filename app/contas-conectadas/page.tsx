@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
 import { useToast } from '../components/ToastContainer';
+import { MercadoLivreIcon, ShopeeIcon } from '../components/MarketplaceIcons';
 
 interface MLAccount {
   id: number;
@@ -352,11 +353,11 @@ export default function ContasConectadas() {
               <button
                 onClick={handleConnectAccount}
                 disabled={connectingAccount}
-                className="group px-8 py-3.5 bg-[#2F4F7F] text-white rounded-xl hover:bg-[#253B65] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors font-semibold text-sm flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {connectingAccount ? (
                   <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -364,9 +365,9 @@ export default function ContasConectadas() {
                   </>
                 ) : (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
+                    <span className="flex items-center justify-center w-6 h-6 rounded-md bg-white">
+                      <MercadoLivreIcon className="w-4 h-4" />
+                    </span>
                     Conectar Mercado Livre
                   </>
                 )}
@@ -374,11 +375,11 @@ export default function ContasConectadas() {
               <button
                 onClick={handleConnectShopeeAccount}
                 disabled={connectingShopeeAccount}
-                className="group px-8 py-3.5 bg-[#EE4D2D] text-white rounded-xl hover:bg-[#d8431f] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 bg-[#EE4D2D] text-white rounded-lg hover:bg-[#d8431f] transition-colors font-semibold text-sm flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {connectingShopeeAccount ? (
                   <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -386,9 +387,9 @@ export default function ContasConectadas() {
                   </>
                 ) : (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
+                    <span className="flex items-center justify-center w-6 h-6 rounded-md bg-white">
+                      <ShopeeIcon className="w-4 h-4" />
+                    </span>
                     Conectar Shopee
                   </>
                 )}
@@ -479,8 +480,8 @@ export default function ContasConectadas() {
                     >
                       <div className="flex items-start gap-3">
                         {/* Avatar */}
-                        <div className="w-10 h-10 bg-yellow-400/20 rounded-lg flex items-center justify-center text-neutral-900 font-semibold text-base flex-shrink-0">
-                          {account.first_name?.charAt(0) || account.nickname?.charAt(0) || 'M'}
+                        <div className="w-10 h-10 bg-neutral-50 border border-neutral-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <MercadoLivreIcon className="w-6 h-6" />
                         </div>
 
                         {/* Informações */}
@@ -548,8 +549,8 @@ export default function ContasConectadas() {
                       className="group relative bg-white rounded-xl border border-neutral-200 p-4 hover:border-neutral-300 transition-all duration-200"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-[#EE4D2D] font-semibold text-base flex-shrink-0">
-                          {account.shop_name?.charAt(0) || 'S'}
+                        <div className="w-10 h-10 bg-orange-50 border border-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <ShopeeIcon className="w-6 h-6" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
