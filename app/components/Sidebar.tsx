@@ -87,7 +87,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       ),
     },
     {
-      name: 'Proteção BPP',
+      name: 'Proteção BPP ML',
       href: '/bpp-ml',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
