@@ -86,8 +86,8 @@ export default function BppShopeePage() {
               </a>
             </div>
 
-            {/* Passo a passo */}
-            <div className="grid lg:grid-cols-2 gap-4">
+            {/* Passo a passo (timeline vertical) */}
+            <ol className="relative max-w-3xl">
               <Step n="01" title="Abrir o Portal">
                 Clique em <strong>&quot;Abrir Portal Brand IP - Shopee&quot;</strong>.{' '}
                 <a href={targetUrl} target="_blank" rel="noopener noreferrer" className="text-[#EE4D2D] font-medium hover:underline break-all">
@@ -157,12 +157,12 @@ export default function BppShopeePage() {
                 para análise da equipe da Shopee. Durante esse período, basta aguardar a validação do seu cadastro.
               </Step>
 
-              <Step n="07" title="Análise concluída">
+              <Step n="07" title="Análise concluída" last>
                 Após a aprovação, seu direito autoral estará cadastrado no Shopee Brand IP Portal. A partir desse
                 momento, você poderá registrar denúncias de anúncios que utilizem indevidamente sua obra protegida,
                 acessando: <strong>Gestão de Caso → Envie uma violação</strong>.
               </Step>
-            </div>
+            </ol>
 
             {/* Checklist rápido */}
             <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-5">
@@ -197,14 +197,21 @@ export default function BppShopeePage() {
   );
 }
 
-function Step({ n, title, children }: { n: string; title: string; children: ReactNode }) {
+function Step({ n, title, children, last = false }: { n: string; title: string; children: ReactNode; last?: boolean }) {
   return (
-    <div className="flex gap-3.5 items-start rounded-lg border border-neutral-200 bg-white p-4">
-      <div className="h-9 w-9 rounded-full bg-[#EE4D2D] text-white flex items-center justify-center text-base font-bold flex-shrink-0">{n}</div>
-      <div className="min-w-0">
+    <li className="relative flex gap-4">
+      {/* Coluna do número + conector vertical */}
+      <div className="flex flex-col items-center flex-shrink-0">
+        <div className="h-10 w-10 rounded-full bg-[#EE4D2D] text-white flex items-center justify-center text-base font-bold shadow-sm ring-4 ring-white z-10">
+          {n}
+        </div>
+        {!last && <div className="w-px flex-1 bg-neutral-200" aria-hidden />}
+      </div>
+      {/* Conteúdo do passo */}
+      <div className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm mb-4">
         <div className="text-lg font-semibold text-neutral-900">{title}</div>
         <div className="text-base text-neutral-600 mt-1">{children}</div>
       </div>
-    </div>
+    </li>
   );
 }
