@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import SyncListingsModal from '../components/SyncListingsModal';
 import SyncShopeeModal from '../components/SyncShopeeModal';
+import { MercadoLivreIcon, ShopeeIcon } from '../components/MarketplaceIcons';
 import { generateAnuncioPDF } from '../utils/pdfGenerator';
 
 interface Listing {
@@ -658,20 +659,20 @@ function AnunciosPageContent() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowSyncModal(true)}
-                className="group px-8 py-3.5 bg-[#2F4F7F] text-white rounded-xl hover:bg-[#253B65] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center"
+                className="px-5 py-2.5 bg-[#2F4F7F] text-white rounded-lg hover:bg-[#253B65] transition-colors font-semibold text-sm flex items-center gap-2 w-full sm:w-auto justify-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
+                <span className="flex items-center justify-center w-6 h-6 rounded-md bg-white">
+                  <MercadoLivreIcon className="w-4 h-4" />
+                </span>
                 Sincronizar ML
               </button>
               <button
                 onClick={() => setShowSyncShopeeModal(true)}
-                className="group px-8 py-3.5 bg-[#EE4D2D] text-white rounded-xl hover:bg-[#d8431f] transition-all hover:shadow-xl hover:scale-[1.02] font-semibold flex items-center gap-2.5 w-full lg:w-auto justify-center"
+                className="px-5 py-2.5 bg-[#EE4D2D] text-white rounded-lg hover:bg-[#d8431f] transition-colors font-semibold text-sm flex items-center gap-2 w-full sm:w-auto justify-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
+                <span className="flex items-center justify-center w-6 h-6 rounded-md bg-white">
+                  <ShopeeIcon className="w-4 h-4" />
+                </span>
                 Sincronizar Shopee
               </button>
             </div>
@@ -944,15 +945,12 @@ function AnunciosPageContent() {
                             <div className="pt-3 border-t border-neutral-100">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className={`w-6 h-6 flex-shrink-0 rounded-md flex items-center justify-center font-semibold text-xs ${
-                                    listing.platform === 'shopee'
-                                      ? 'bg-orange-100 text-[#EE4D2D]'
-                                      : 'bg-yellow-400/20 text-neutral-900'
-                                  }`}
+                                  className="w-6 h-6 flex-shrink-0 rounded-md flex items-center justify-center bg-white border border-neutral-200"
+                                  title={listing.platform === 'shopee' ? 'Shopee' : 'Mercado Livre'}
                                 >
                                   {listing.platform === 'shopee'
-                                    ? listing.shopee_shop_name?.charAt(0) || 'S'
-                                    : listing.account_first_name?.charAt(0) || listing.ml_account_nickname?.charAt(0) || listing.account_nickname?.charAt(0) || 'M'}
+                                    ? <ShopeeIcon className="w-4 h-4" />
+                                    : <MercadoLivreIcon className="w-4 h-4" />}
                                 </div>
                                 <span className="text-[11px] text-neutral-600 truncate">
                                   {listing.platform === 'shopee'

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import { MercadoLivreIcon, ShopeeIcon } from '../components/MarketplaceIcons';
 
 interface CertItem {
   id: number;
@@ -320,10 +321,10 @@ function CertificadosPageContent() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 mb-1">
                             <span
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide text-white"
-                              style={{ backgroundColor: accentColor }}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded bg-white border border-neutral-200"
+                              title={isShopee ? 'Shopee' : 'Mercado Livre'}
                             >
-                              {isShopee ? 'Shopee' : 'ML'}
+                              {isShopee ? <ShopeeIcon className="w-3.5 h-3.5" /> : <MercadoLivreIcon className="w-3.5 h-3.5" />}
                             </span>
                             <span className="text-[11px] text-neutral-400 truncate">{it.mlb_code}</span>
                           </div>
