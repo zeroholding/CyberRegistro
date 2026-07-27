@@ -1,4 +1,5 @@
 import pool from '@/lib/db';
+import { MercadoLivreIcon, ShopeeIcon } from '../components/MarketplaceIcons';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -104,7 +105,17 @@ export default async function VerifyPage({
               <>
                 <Field label="Obra / Anúncio" value={registro.title} />
                 <Field label="Código" value={registro.mlb_code} />
-                <Field label="Plataforma" value={platformLabel(registro.platform)} />
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-neutral-400">Plataforma</div>
+                  <div className="mt-1 flex items-center gap-2 text-sm text-neutral-900">
+                    {registro.platform === 'shopee' ? (
+                      <ShopeeIcon className="w-5 h-5 shrink-0" />
+                    ) : registro.platform === 'mercadolivre' ? (
+                      <MercadoLivreIcon className="w-5 h-5 shrink-0" />
+                    ) : null}
+                    {platformLabel(registro.platform)}
+                  </div>
+                </div>
                 <Field label="Registrado em" value={formatDate(registro.registro_gerado_em)} />
                 <Field label="Hash (SHA-256)" value={h as string} mono />
                 {registro.permalink ? (

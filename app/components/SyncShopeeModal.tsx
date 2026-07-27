@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
+import { ShopeeIcon } from './MarketplaceIcons';
 
 interface ShopeeAccount {
   id: number;
@@ -181,7 +182,7 @@ export default function SyncShopeeModal({ isOpen, onClose, userId, onSyncComplet
     <Modal
       isOpen={isOpen}
       onClose={() => !syncing && onClose()}
-      title="Sincronizar Anúncios Shopee"
+      title="Sincronizar Anúncios da Shopee"
       maxWidth="lg"
       footer={
         !syncResult && (
@@ -263,7 +264,10 @@ export default function SyncShopeeModal({ isOpen, onClose, userId, onSyncComplet
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-neutral-600 mb-4">Selecione as lojas da Shopee que deseja sincronizar:</p>
+          <p className="text-sm text-neutral-600 mb-4 flex items-center gap-2">
+            <ShopeeIcon className="w-5 h-5 shrink-0" />
+            Selecione as lojas da Shopee que deseja sincronizar:
+          </p>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {accounts.map((account) => {
               const expired = isAccountExpired(account.expires_at);

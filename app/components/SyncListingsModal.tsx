@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
+import { MercadoLivreIcon } from './MarketplaceIcons';
 
 // Ensure this file is saved with UTF-8 encoding to properly display special characters
 
@@ -377,7 +378,8 @@ export default function SyncListingsModal({ isOpen, onClose, userId, onSyncCompl
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-neutral-600 mb-4">
+          <p className="text-sm text-neutral-600 mb-4 flex items-center gap-2">
+            <MercadoLivreIcon className="w-5 h-5 shrink-0" />
             Selecione as contas do Mercado Livre que deseja sincronizar:
           </p>
 
