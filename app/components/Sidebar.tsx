@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -19,25 +19,19 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  // Persist collapse state (desktop)
+  // O menu fica SEMPRE expandido no desktop. O antigo modo "recolhido" era
+  // ativado por uma faixa invisível na borda (fácil de clicar sem querer) e
+  // ficava salvo no localStorage, fazendo o menu abrir fechado em todas as
+  // telas. Aqui limpamos a chave para quem já tinha o estado gravado.
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('sidebarCollapsed');
-      if (saved) setCollapsed(saved === '1');
+      localStorage.removeItem('sidebarCollapsed');
     } catch {}
   }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-    } catch {}
-  }, [collapsed]);
-
-  // Sizing helpers
-  const logoSize = collapsed ? 72 : 120;
+  // Tamanho do logo (menu sempre expandido)
+  const logoSize = 120;
 
   const menuItems: MenuItem[] = [
     {
@@ -123,14 +117,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           fixed top-0 left-0 z-30 h-screen w-64 bg-white
           border-r border-neutral-200
           transform transition-transform duration-300 ease-in-out
-          lg:translate-x-0 lg:static lg:z-auto
-          ${collapsed ? 'lg:w-16' : 'lg:w-64'}
+          lg:translate-x-0 lg:static lg:z-auto lg:w-64
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
         <div className="flex flex-col h-full overflow-visible">
           {/* Logo */}
-          <div className={`relative flex items-center justify-center h-20 ${collapsed ? 'px-2' : 'px-6'} border-b border-neutral-200`}>
+          <div className="relative flex items-center justify-center h-20 px-6 border-b border-neutral-200">
             <Image
               src="/logo.png"
               alt="Cyber Registro"
@@ -149,22 +142,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Menu de navegação */}
-          <nav className={`flex-1 ${collapsed ? 'px-1.5' : 'px-3'} py-4 overflow-y-auto overflow-x-visible`}>
+          <nav className="flex-1 px-3 py-4 overflow-y-auto overflow-x-visible">
             <ul className="space-y-1 overflow-visible relative">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
-                  <li
-                    key={item.name}
-                    className="relative overflow-visible"
-                    onMouseEnter={() => setHoveredItem(item.name)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
+                  <li key={item.name} className="relative overflow-visible">
                     <Link
                       href={item.href}
                       onClick={onClose}
                       className={`
-                        relative flex items-center ${collapsed ? 'justify-center gap-0' : 'gap-3'} ${collapsed ? 'px-2.5' : 'px-3'} py-2.5 rounded-lg text-sm min-h-[40px]
+                        relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm min-h-[40px]
                         transition-all duration-200
                         ${
                           isActive
@@ -174,45 +162,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       `}
                       aria-label={item.name}
                     >
-                      <span className={`${isActive ? 'text-[#2F4F7F]' : 'text-neutral-500'} transition-transform duration-200 ${collapsed ? 'lg:scale-110' : ''} flex-shrink-0 w-5 h-5 flex items-center justify-center`}>
+                      <span className={`${isActive ? 'text-[#2F4F7F]' : 'text-neutral-500'} flex-shrink-0 w-5 h-5 flex items-center justify-center`}>
                         {item.icon}
                       </span>
-                      {!collapsed && (
-                        <span className="ml-3 flex flex-1 items-center justify-between whitespace-nowrap">
-                          {item.name}
-                          {item.badge && (
-                            <span className="ml-2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
-                              {item.badge}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                      {collapsed && item.badge && (
-                        <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" aria-hidden />
-                      )}
-                    </Link>
-                    {collapsed && hoveredItem === item.name && (
-                      <div
-                        className="hidden lg:block absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg border border-neutral-200 bg-white shadow-xl px-3 py-2 text-sm font-medium text-neutral-900 pointer-events-none animate-in fade-in duration-200"
-                        style={{ zIndex: 9999 }}
-                      >
+                      <span className="ml-3 flex flex-1 items-center justify-between whitespace-nowrap">
                         {item.name}
-                        <span className="pointer-events-none absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-neutral-200 rotate-45" />
-                      </div>
-                    )}
+                        {item.badge && (
+                          <span className="ml-2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
+                            {item.badge}
+                          </span>
+                        )}
+                      </span>
+                    </Link>
                   </li>
                 );
               })}
             </ul>
           </nav>
         </div>
-        {/* Full-height collapse handle on desktop (click the right border) */}
-        <div
-          className="hidden lg:block absolute top-0 -right-[1px] h-full w-2 cursor-col-resize"
-          onClick={() => setCollapsed((v) => !v)}
-          aria-hidden
-          title="Recolher/Expandir menu"
-        />
       </aside>
     </>
   );
