@@ -21,6 +21,8 @@ interface AccountStats {
   active: number;
   paused: number;
   under_review: number;
+  protegidos: number;
+  protegidos_ativos: number;
 }
 
 interface ShopeeAccount {
@@ -106,9 +108,10 @@ export default function Dashboard() {
           active: parseInt(stat.active) || 0,
           paused: parseInt(stat.paused) || 0,
           under_review: parseInt(stat.under_review) || 0,
+          protegidos: parseInt(stat.protegidos) || 0,
+          protegidos_ativos: parseInt(stat.protegidos_ativos) || 0,
         }));
-        
-        console.log('Estatísticas processadas:', stats);
+
         setAccountsStats(stats);
         // Usar total geral distinto do backend quando disponível para evitar duplicidade
         if (typeof statsData.totalGeral !== 'undefined') {
@@ -155,6 +158,8 @@ export default function Dashboard() {
           active: parseInt(stat.active) || 0,
           paused: parseInt(stat.paused) || 0,
           under_review: parseInt(stat.under_review) || 0,
+          protegidos: parseInt(stat.protegidos) || 0,
+          protegidos_ativos: parseInt(stat.protegidos_ativos) || 0,
         }));
         setShopeeStats(sStats);
       } else {
@@ -218,7 +223,13 @@ export default function Dashboard() {
   // ===== Consolidado ML + Shopee (o que o usuário realmente tem) =====
   const ativosGeral = totalAtivos + shopeeTotalAtivos;
   const pausadosGeral = totalInativos + shopeeTotalInativos;
-  const protegidos = Math.min(registrosRealizados, ativosGeral || registrosRealizados);
+  // "Protegido" = certificado emitido, com o MESMO critério da tela /certificados
+  // (registro_status = 'protegido' OU registro_gerado_em preenchido), somando
+  // as contas de ML e as lojas Shopee. Considera apenas anúncios ativos, que é
+  // a base comparável do card de proteção.
+  const protegidosMl = accountsStats.reduce((acc, s) => acc + (Number(s.protegidos_ativos) || 0), 0);
+  const protegidosShopee = shopeeStats.reduce((acc, s) => acc + (Number(s.protegidos_ativos) || 0), 0);
+  const protegidos = protegidosMl + protegidosShopee;
   const desprotegidos = Math.max(0, ativosGeral - protegidos);
   const percentualProtegido = ativosGeral > 0 ? (protegidos / ativosGeral) * 100 : 0;
   const totalContas = accounts.length + shopeeAccounts.length;
@@ -466,7 +477,10 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <p className="text-3xl font-semibold text-green-600">{protegidos.toLocaleString()}</p>
-                    <p className="text-xs text-neutral-500 mt-2">Certificados emitidos</p>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      Anúncios ativos com certificado
+                      {registrosRealizados > 0 && ` · ${registrosRealizados.toLocaleString()} no registro`}
+                    </p>
                   </Link>
 
                   <Link
@@ -530,20 +544,24 @@ export default function Dashboard() {
                   ) : (
                     <div className="divide-y divide-neutral-100">
                       {/* Cabeçalho da lista */}
-                      <div className="hidden md:grid grid-cols-[1fr_100px_100px_100px] gap-4 px-5 py-2.5 bg-neutral-50/70 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                      <div className="hidden md:grid grid-cols-[1fr_80px_80px_80px_170px] gap-4 px-5 py-2.5 bg-neutral-50/70 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                         <span>Conta</span>
                         <span className="text-right">Total</span>
                         <span className="text-right">Ativos</span>
                         <span className="text-right">Pausados</span>
+                        <span>Protegidos</span>
                       </div>
 
                       {/* Contas Mercado Livre */}
                       {accounts.map((account) => {
                         const stats = accountsStats.find((s) => s.account_id === account.id);
+                        const ativosConta = stats?.active ?? 0;
+                        const protConta = stats?.protegidos_ativos ?? 0;
+                        const pctConta = ativosConta > 0 ? (protConta / ativosConta) * 100 : 0;
                         return (
                           <div
                             key={`ml-${account.id}`}
-                            className="grid grid-cols-2 md:grid-cols-[1fr_100px_100px_100px] gap-3 md:gap-4 px-5 py-3.5 items-center hover:bg-neutral-50/60 transition-colors"
+                            className="grid grid-cols-2 md:grid-cols-[1fr_80px_80px_80px_170px] gap-3 md:gap-4 px-5 py-3.5 items-center hover:bg-neutral-50/60 transition-colors"
                           >
                             <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
                               <span className="w-8 h-8 rounded-lg border border-neutral-200 bg-white flex items-center justify-center flex-shrink-0">
@@ -568,6 +586,23 @@ export default function Dashboard() {
                               <span className="md:hidden text-[11px] text-neutral-500 mr-1">Pausados</span>
                               <span className="text-sm font-semibold text-neutral-400">{(stats?.paused ?? 0).toLocaleString()}</span>
                             </div>
+                            <div className="col-span-2 md:col-span-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-neutral-500">
+                                  {protConta.toLocaleString()} / {ativosConta.toLocaleString()}
+                                </span>
+                                <span className="text-xs font-semibold text-neutral-700">{pctConta.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, pctConta)}%`,
+                                    backgroundColor: pctConta >= 70 ? '#16a34a' : pctConta >= 30 ? '#d97706' : '#dc2626',
+                                  }}
+                                />
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
@@ -575,10 +610,13 @@ export default function Dashboard() {
                       {/* Lojas Shopee */}
                       {shopeeAccounts.map((account) => {
                         const stats = shopeeStats.find((s) => s.account_id === String(account.id));
+                        const ativosLoja = stats?.active ?? 0;
+                        const protLoja = stats?.protegidos_ativos ?? 0;
+                        const pctLoja = ativosLoja > 0 ? (protLoja / ativosLoja) * 100 : 0;
                         return (
                           <div
                             key={`sp-${account.id}`}
-                            className="grid grid-cols-2 md:grid-cols-[1fr_100px_100px_100px] gap-3 md:gap-4 px-5 py-3.5 items-center hover:bg-neutral-50/60 transition-colors"
+                            className="grid grid-cols-2 md:grid-cols-[1fr_80px_80px_80px_170px] gap-3 md:gap-4 px-5 py-3.5 items-center hover:bg-neutral-50/60 transition-colors"
                           >
                             <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
                               <span className="w-8 h-8 rounded-lg border border-orange-100 bg-orange-50 flex items-center justify-center flex-shrink-0">
@@ -602,6 +640,23 @@ export default function Dashboard() {
                             <div className="text-right">
                               <span className="md:hidden text-[11px] text-neutral-500 mr-1">Pausados</span>
                               <span className="text-sm font-semibold text-neutral-400">{(stats?.paused ?? 0).toLocaleString()}</span>
+                            </div>
+                            <div className="col-span-2 md:col-span-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-neutral-500">
+                                  {protLoja.toLocaleString()} / {ativosLoja.toLocaleString()}
+                                </span>
+                                <span className="text-xs font-semibold text-neutral-700">{pctLoja.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, pctLoja)}%`,
+                                    backgroundColor: pctLoja >= 70 ? '#16a34a' : pctLoja >= 30 ? '#d97706' : '#dc2626',
+                                  }}
+                                />
+                              </div>
                             </div>
                           </div>
                         );

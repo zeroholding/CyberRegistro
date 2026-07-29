@@ -34,7 +34,14 @@ export async function GET(req: NextRequest) {
         COUNT(DISTINCT mlb_code)::int as total,
         COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'active')::int as active,
         COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'paused')::int as paused,
-        COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'under_review')::int as under_review
+        COUNT(DISTINCT mlb_code) FILTER (WHERE status = 'under_review')::int as under_review,
+        COUNT(DISTINCT mlb_code) FILTER (
+          WHERE registro_status = 'protegido' OR registro_gerado_em IS NOT NULL
+        )::int as protegidos,
+        COUNT(DISTINCT mlb_code) FILTER (
+          WHERE status = 'active'
+            AND (registro_status = 'protegido' OR registro_gerado_em IS NOT NULL)
+        )::int as protegidos_ativos
        FROM anuncios 
        WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'shopee'
        GROUP BY shopee_account_id`,
@@ -42,7 +49,17 @@ export async function GET(req: NextRequest) {
     );
 
     const totalGeral = await pool.query(
-      `SELECT COUNT(DISTINCT mlb_code)::int as total FROM anuncios WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'shopee'`,
+      `SELECT
+         COUNT(DISTINCT mlb_code)::int as total,
+         COUNT(DISTINCT mlb_code) FILTER (
+           WHERE registro_status = 'protegido' OR registro_gerado_em IS NOT NULL
+         )::int as protegidos,
+         COUNT(DISTINCT mlb_code) FILTER (
+           WHERE status = 'active'
+             AND (registro_status = 'protegido' OR registro_gerado_em IS NOT NULL)
+         )::int as protegidos_ativos
+       FROM anuncios
+       WHERE mlb_code IS NOT NULL AND user_id = $1 AND platform = 'shopee'`,
       [userId]
     );
 
@@ -52,12 +69,16 @@ export async function GET(req: NextRequest) {
       active: parseInt(row.active) || 0,
       paused: parseInt(row.paused) || 0,
       under_review: parseInt(row.under_review) || 0,
+      protegidos: parseInt(row.protegidos) || 0,
+      protegidos_ativos: parseInt(row.protegidos_ativos) || 0,
     }));
 
     return NextResponse.json({
       success: true,
       stats,
       totalGeral: parseInt(totalGeral.rows[0]?.total) || 0,
+      totalProtegidos: parseInt(totalGeral.rows[0]?.protegidos) || 0,
+      totalProtegidosAtivos: parseInt(totalGeral.rows[0]?.protegidos_ativos) || 0,
     });
   } catch (error) {
     console.error('Erro ao buscar estatísticas de anúncios Shopee:', error);
