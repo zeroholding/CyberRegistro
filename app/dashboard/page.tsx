@@ -44,6 +44,9 @@ export default function Dashboard() {
   const [totalGeralDistinct, setTotalGeralDistinct] = useState<number | null>(null);
   const [shopeeAccounts, setShopeeAccounts] = useState<ShopeeAccount[]>([]);
   const [shopeeStats, setShopeeStats] = useState<AccountStats[]>([]);
+  const [evolucao, setEvolucao] = useState<{ mes: string; total: number }[]>([]);
+  const [ultimos7, setUltimos7] = useState(0);
+  const [ultimos30, setUltimos30] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -78,13 +81,14 @@ export default function Dashboard() {
       };
 
       // Executar todas as requisições em paralelo
-      const [accountsRes, statsRes, creditsRes, registrosRes, shopeeAccountsRes, shopeeStatsRes] = await Promise.all([
+      const [accountsRes, statsRes, creditsRes, registrosRes, shopeeAccountsRes, shopeeStatsRes, evolucaoRes] = await Promise.all([
         fetch(`/api/mercadolivre/accounts?userId=${userId}`, { headers }),
         fetch('/api/listings-stats', { headers }),
         fetch('/api/credits', { headers }),
         fetch(`/api/registro/sent?userId=${userId}`, { headers }),
         fetch(`/api/shopee/accounts?userId=${userId}`, { headers }),
         fetch('/api/shopee/listings-stats', { headers }),
+        fetch('/api/registro/evolucao', { headers }),
       ]);
 
       // Processar contas conectadas
@@ -164,6 +168,14 @@ export default function Dashboard() {
         setShopeeStats(sStats);
       } else {
         console.error('Erro ao buscar estatísticas Shopee:', await shopeeStatsRes.text());
+      }
+
+      // Evolução dos certificados (últimos 6 meses)
+      if (evolucaoRes.ok) {
+        const evoData = await evolucaoRes.json();
+        setEvolucao(evoData.meses || []);
+        setUltimos7(Number(evoData.ultimos7) || 0);
+        setUltimos30(Number(evoData.ultimos30) || 0);
       }
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
@@ -296,9 +308,9 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-neutral-50">
-          <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="px-6 py-6">
             {/* Header com boas-vindas */}
-            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold text-neutral-900 mb-1">
                   Olá, {usuario?.nome || 'Usuário'}
@@ -324,8 +336,10 @@ export default function Dashboard() {
                     <div key={i} className="h-28 rounded-xl bg-white border border-neutral-200" />
                   ))}
                 </div>
+                <div className="h-56 rounded-xl bg-white border border-neutral-200" />
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 h-64 rounded-xl bg-white border border-neutral-200" />
+                  <div className="h-64 rounded-xl bg-white border border-neutral-200" />
+                  <div className="h-64 rounded-xl bg-white border border-neutral-200" />
                   <div className="h-64 rounded-xl bg-white border border-neutral-200" />
                 </div>
               </div>
@@ -717,6 +731,72 @@ export default function Dashboard() {
                           </Link>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Evolução dos certificados — últimos 6 meses */}
+                <div className="bg-white rounded-xl border border-neutral-200 p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                    <div>
+                      <h3 className="text-base font-semibold text-neutral-900">Certificados emitidos</h3>
+                      <p className="text-xs text-neutral-500 mt-0.5">Últimos 6 meses</p>
+                    </div>
+                    <div className="flex items-center gap-5">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-neutral-900 leading-none">{ultimos7.toLocaleString()}</p>
+                        <p className="text-[11px] text-neutral-500 mt-1">últimos 7 dias</p>
+                      </div>
+                      <div className="w-px h-8 bg-neutral-200" />
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-neutral-900 leading-none">{ultimos30.toLocaleString()}</p>
+                        <p className="text-[11px] text-neutral-500 mt-1">últimos 30 dias</p>
+                      </div>
+                      <Link
+                        href="/certificados"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#2F4F7F] hover:underline"
+                      >
+                        Ver todos
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {evolucao.some((m) => m.total > 0) ? (
+                    <div className="flex items-end justify-between gap-2 sm:gap-4 h-40">
+                      {evolucao.map((m) => {
+                        const maxVal = Math.max(...evolucao.map((x) => x.total), 1);
+                        const alturaPct = (m.total / maxVal) * 100;
+                        const [ano, mesNum] = m.mes.split('-');
+                        const nomeMes = new Date(Number(ano), Number(mesNum) - 1, 1)
+                          .toLocaleDateString('pt-BR', { month: 'short' })
+                          .replace('.', '');
+                        return (
+                          <div key={m.mes} className="flex-1 flex flex-col items-center justify-end h-full gap-2 group">
+                            <span className="text-xs font-semibold text-neutral-700">{m.total.toLocaleString()}</span>
+                            <div className="w-full flex items-end justify-center h-full">
+                              <div
+                                className="w-full max-w-[52px] rounded-t-md bg-[#2F4F7F] group-hover:bg-[#253B65] transition-all"
+                                style={{ height: `${Math.max(2, alturaPct)}%` }}
+                                title={`${m.total} certificado(s) em ${nomeMes}/${ano}`}
+                              />
+                            </div>
+                            <span className="text-[11px] text-neutral-500 capitalize">{nomeMes}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-40 text-center">
+                      <svg className="w-10 h-10 text-neutral-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <p className="text-sm text-neutral-500">Nenhum certificado emitido nos últimos 6 meses</p>
+                      <Link href="/registro" className="mt-2 text-sm font-semibold text-[#2F4F7F] hover:underline">
+                        Gerar o primeiro
+                      </Link>
                     </div>
                   )}
                 </div>
