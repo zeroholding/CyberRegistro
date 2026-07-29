@@ -234,6 +234,44 @@ export default function Dashboard() {
   const percentualProtegido = ativosGeral > 0 ? (protegidos / ativosGeral) * 100 : 0;
   const totalContas = accounts.length + shopeeAccounts.length;
 
+  // Consolidado de status e catálogo (ML + Shopee)
+  const shopeeEmRevisao = shopeeStats.reduce((acc, s) => acc + (Number(s.under_review) || 0), 0);
+  const revisaoGeral = totalEmRevisao + shopeeEmRevisao;
+  const shopeeTotalCatalogo = shopeeStats.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+  const catalogoGeral = totalAnuncios + shopeeTotalCatalogo;
+
+  // Cobertura de créditos: quanto do que falta proteger dá para cobrir hoje
+  const coberturaCreditos = desprotegidos > 0 ? Math.min(100, (credits / desprotegidos) * 100) : 100;
+  const creditosFaltantes = Math.max(0, desprotegidos - credits);
+
+  // Conta que mais precisa de atenção (menor % de proteção entre as ativas)
+  const contasComProtecao = [
+    ...accounts.map((a) => {
+      const s = accountsStats.find((x) => x.account_id === a.id);
+      return {
+        key: `ml:${a.id}`,
+        nome: a.nickname || `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim() || 'Conta ML',
+        plataforma: 'mercadolivre' as const,
+        ativos: s?.active ?? 0,
+        protegidos: s?.protegidos_ativos ?? 0,
+      };
+    }),
+    ...shopeeAccounts.map((a) => {
+      const s = shopeeStats.find((x) => x.account_id === String(a.id));
+      return {
+        key: `shopee:${a.id}`,
+        nome: a.shop_name || `Loja ${a.shop_id}`,
+        plataforma: 'shopee' as const,
+        ativos: s?.active ?? 0,
+        protegidos: s?.protegidos_ativos ?? 0,
+      };
+    }),
+  ].filter((c) => c.ativos > 0);
+
+  const contaAtencao = contasComProtecao
+    .map((c) => ({ ...c, pct: (c.protegidos / c.ativos) * 100 }))
+    .sort((a, b) => a.pct - b.pct)[0];
+
   // Cor do nível de proteção (semântica: verde ok, âmbar atenção, vermelho risco)
   const nivelCor =
     percentualProtegido >= 70 ? '#16a34a' : percentualProtegido >= 30 ? '#d97706' : '#dc2626';
@@ -427,31 +465,47 @@ export default function Dashboard() {
 
                   {/* Régua por marketplace */}
                   <div className="grid sm:grid-cols-2 border-t border-neutral-100 divide-y sm:divide-y-0 sm:divide-x divide-neutral-100">
-                    <div className="flex items-center gap-3 px-6 py-4">
+                    <Link
+                      href="/anuncios?platform=mercadolivre"
+                      className="flex items-center gap-3 px-6 py-4 hover:bg-neutral-50/70 transition-colors group"
+                    >
                       <MercadoLivreIcon className="w-7 h-7 shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-neutral-900">{totalAtivos.toLocaleString()} ativos</p>
+                        <p className="text-sm font-semibold text-neutral-900 group-hover:underline">
+                          {totalAtivos.toLocaleString()} ativos
+                        </p>
                         <p className="text-xs text-neutral-500">
-                          {accounts.length} {accounts.length === 1 ? 'conta' : 'contas'} · {totalInativos.toLocaleString()} pausados
+                          {accounts.length} {accounts.length === 1 ? 'conta' : 'contas'} · {protegidosMl.toLocaleString()} protegidos
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 px-6 py-4">
+                      <svg className="ml-auto w-4 h-4 text-neutral-300 group-hover:text-[#2F4F7F] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                    <Link
+                      href="/anuncios?platform=shopee"
+                      className="flex items-center gap-3 px-6 py-4 hover:bg-neutral-50/70 transition-colors group"
+                    >
                       <ShopeeIcon className="w-7 h-7 shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-neutral-900">{shopeeTotalAtivos.toLocaleString()} ativos</p>
+                        <p className="text-sm font-semibold text-neutral-900 group-hover:underline">
+                          {shopeeTotalAtivos.toLocaleString()} ativos
+                        </p>
                         <p className="text-xs text-neutral-500">
-                          {shopeeAccounts.length} {shopeeAccounts.length === 1 ? 'loja' : 'lojas'} · {shopeeTotalInativos.toLocaleString()} pausados
+                          {shopeeAccounts.length} {shopeeAccounts.length === 1 ? 'loja' : 'lojas'} · {protegidosShopee.toLocaleString()} protegidos
                         </p>
                       </div>
-                    </div>
+                      <svg className="ml-auto w-4 h-4 text-neutral-300 group-hover:text-[#EE4D2D] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
                   </div>
                 </div>
 
                 {/* KPIs consolidados (ML + Shopee) — card inteiro clicável */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Link
-                    href="/anuncios"
+                    href="/anuncios?status=active"
                     className="group bg-white rounded-xl border border-neutral-200 p-5 hover:border-[#2F4F7F]/40 hover:shadow-sm transition-all"
                   >
                     <div className="flex items-center justify-between mb-3">
@@ -559,8 +613,9 @@ export default function Dashboard() {
                         const protConta = stats?.protegidos_ativos ?? 0;
                         const pctConta = ativosConta > 0 ? (protConta / ativosConta) * 100 : 0;
                         return (
-                          <div
+                          <Link
                             key={`ml-${account.id}`}
+                            href={`/anuncios?platform=mercadolivre&accountId=ml:${account.id}`}
                             className="grid grid-cols-2 md:grid-cols-[1fr_80px_80px_80px_170px] gap-3 md:gap-4 px-5 py-3.5 items-center hover:bg-neutral-50/60 transition-colors"
                           >
                             <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
@@ -603,7 +658,7 @@ export default function Dashboard() {
                                 />
                               </div>
                             </div>
-                          </div>
+                          </Link>
                         );
                       })}
 
@@ -614,8 +669,9 @@ export default function Dashboard() {
                         const protLoja = stats?.protegidos_ativos ?? 0;
                         const pctLoja = ativosLoja > 0 ? (protLoja / ativosLoja) * 100 : 0;
                         return (
-                          <div
+                          <Link
                             key={`sp-${account.id}`}
+                            href={`/anuncios?platform=shopee&accountId=shopee:${account.id}`}
                             className="grid grid-cols-2 md:grid-cols-[1fr_80px_80px_80px_170px] gap-3 md:gap-4 px-5 py-3.5 items-center hover:bg-neutral-50/60 transition-colors"
                           >
                             <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
@@ -658,76 +714,66 @@ export default function Dashboard() {
                                 />
                               </div>
                             </div>
-                          </div>
+                          </Link>
                         );
                       })}
                     </div>
                   )}
                 </div>
 
-                {/* Grid com Estatísticas Detalhadas e Atividade Recente */}
+                {/* Detalhamento */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Status dos Anúncios - 2 colunas */}
-                  <div className="lg:col-span-2 bg-white rounded-lg border border-neutral-200 p-6">
-                    <h3 className="text-base font-semibold text-neutral-900 mb-4">Status dos Anúncios</h3>
-                    {totalAnuncios > 0 ? (
+                  {/* Status dos anúncios — consolidado ML + Shopee, cada linha filtra */}
+                  <div className="bg-white rounded-xl border border-neutral-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-semibold text-neutral-900">Status dos anúncios</h3>
+                      <Link href="/anuncios" className="text-xs font-medium text-[#2F4F7F] hover:underline">
+                        Ver todos
+                      </Link>
+                    </div>
+
+                    {catalogoGeral > 0 ? (
                       <div className="space-y-4">
-                        {/* Ativos */}
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                              <span className="text-sm text-neutral-700">Ativos</span>
+                        {[
+                          { label: 'Ativos', value: ativosGeral, color: '#16a34a', status: 'active' },
+                          { label: 'Pausados', value: pausadosGeral, color: '#a3a3a3', status: 'paused' },
+                          { label: 'Em revisão', value: revisaoGeral, color: '#2563eb', status: 'under_review' },
+                        ].map((row) => (
+                          <Link key={row.status} href={`/anuncios?status=${row.status}`} className="block group">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.color }} />
+                                <span className="text-sm text-neutral-700 group-hover:text-neutral-900">{row.label}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-neutral-900">{row.value.toLocaleString()}</span>
+                                <span className="text-xs text-neutral-400">
+                                  {catalogoGeral > 0 ? ((row.value / catalogoGeral) * 100).toFixed(0) : 0}%
+                                </span>
+                              </div>
                             </div>
-                            <span className="text-sm font-semibold text-neutral-900">{totalAtivos}</span>
-                          </div>
-                          <div className="w-full bg-neutral-100 rounded-full h-2">
-                            <div
-                              className="bg-green-500 h-2 rounded-full transition-all"
-                              style={{ width: `${totalAnuncios > 0 ? (totalAtivos / totalAnuncios) * 100 : 0}%` }}
-                            ></div>
-                          </div>
-                        </div>
-
-                        {/* Pausados */}
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-neutral-400"></div>
-                              <span className="text-sm text-neutral-700">Pausados</span>
+                            <div className="w-full bg-neutral-100 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-2 rounded-full transition-all"
+                                style={{
+                                  width: `${catalogoGeral > 0 ? (row.value / catalogoGeral) * 100 : 0}%`,
+                                  backgroundColor: row.color,
+                                }}
+                              />
                             </div>
-                            <span className="text-sm font-semibold text-neutral-900">{totalInativos}</span>
-                          </div>
-                          <div className="w-full bg-neutral-100 rounded-full h-2">
-                            <div
-                              className="bg-neutral-400 h-2 rounded-full transition-all"
-                              style={{ width: `${totalAnuncios > 0 ? (totalInativos / totalAnuncios) * 100 : 0}%` }}
-                            ></div>
-                          </div>
-                        </div>
+                          </Link>
+                        ))}
 
-                        {/* Em Revisão */}
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                              <span className="text-sm text-neutral-700">Em Revisão</span>
-                            </div>
-                            <span className="text-sm font-semibold text-neutral-900">{totalEmRevisao}</span>
-                          </div>
-                          <div className="w-full bg-neutral-100 rounded-full h-2">
-                            <div
-                              className="bg-blue-500 h-2 rounded-full transition-all"
-                              style={{ width: `${totalAnuncios > 0 ? (totalEmRevisao / totalAnuncios) * 100 : 0}%` }}
-                            ></div>
-                          </div>
-                        </div>
-
-                        {/* Resumo */}
-                        <div className="pt-4 border-t border-neutral-100">
+                        <div className="pt-4 border-t border-neutral-100 space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-neutral-600">Total de anúncios</span>
-                            <span className="font-semibold text-neutral-900">{totalAnuncios.toLocaleString()}</span>
+                            <span className="text-neutral-600">Catálogo total</span>
+                            <span className="font-semibold text-neutral-900">{catalogoGeral.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-neutral-600">Contas conectadas</span>
+                            <Link href="/contas-conectadas" className="font-semibold text-[#2F4F7F] hover:underline">
+                              {totalContas}
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -736,8 +782,100 @@ export default function Dashboard() {
                         <svg className="w-12 h-12 text-neutral-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
-                        <p className="text-sm text-neutral-500">Nenhum anúncio sincronizado</p>
+                        <p className="text-sm text-neutral-500 mb-4">Nenhum anúncio sincronizado</p>
+                        <Link href="/anuncios" className="text-sm font-semibold text-[#2F4F7F] hover:underline">
+                          Sincronizar agora
+                        </Link>
                       </div>
+                    )}
+                  </div>
+
+                  {/* Cobertura de créditos + conta que precisa de atenção */}
+                  <div className="space-y-6">
+                    <div className="bg-white rounded-xl border border-neutral-200 p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base font-semibold text-neutral-900">Cobertura de créditos</h3>
+                        <svg className="w-4 h-4 text-[#2F4F7F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+
+                      <p className="text-sm text-neutral-600 mb-3">
+                        {desprotegidos === 0 ? (
+                          <>Nada pendente. Seus créditos ficam reservados para novos anúncios.</>
+                        ) : creditosFaltantes === 0 ? (
+                          <>
+                            Seus <strong className="text-neutral-900">{credits}</strong> créditos cobrem os{' '}
+                            <strong className="text-neutral-900">{desprotegidos.toLocaleString()}</strong> anúncios sem proteção.
+                          </>
+                        ) : (
+                          <>
+                            Seus <strong className="text-neutral-900">{credits}</strong> créditos cobrem{' '}
+                            <strong className="text-neutral-900">{coberturaCreditos.toFixed(0)}%</strong> dos{' '}
+                            {desprotegidos.toLocaleString()} anúncios sem proteção.
+                          </>
+                        )}
+                      </p>
+
+                      <div className="w-full bg-neutral-100 rounded-full h-2 overflow-hidden mb-3">
+                        <div
+                          className="h-2 rounded-full transition-all"
+                          style={{
+                            width: `${coberturaCreditos}%`,
+                            backgroundColor: creditosFaltantes === 0 ? '#16a34a' : coberturaCreditos >= 30 ? '#d97706' : '#dc2626',
+                          }}
+                        />
+                      </div>
+
+                      {creditosFaltantes > 0 && (
+                        <p className="text-xs text-neutral-500 mb-4">
+                          Faltam <strong className="text-neutral-700">{creditosFaltantes.toLocaleString()}</strong> créditos para
+                          proteger tudo.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => setIsPurchaseModalOpen(true)}
+                        className="w-full px-4 py-2.5 rounded-lg bg-[#2F4F7F] text-white text-sm font-semibold hover:bg-[#253B65] transition-colors"
+                      >
+                        Adicionar créditos
+                      </button>
+                    </div>
+
+                    {/* Conta que precisa de atenção */}
+                    {contaAtencao && contaAtencao.pct < 100 && (
+                      <Link
+                        href={`/anuncios?platform=${contaAtencao.plataforma}&accountId=${contaAtencao.key}`}
+                        className="block bg-white rounded-xl border border-neutral-200 p-6 hover:border-amber-400/60 hover:shadow-sm transition-all group"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-base font-semibold text-neutral-900">Precisa de atenção</h3>
+                          <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="w-8 h-8 rounded-lg border border-neutral-200 bg-white flex items-center justify-center flex-shrink-0">
+                            {contaAtencao.plataforma === 'shopee' ? (
+                              <ShopeeIcon className="w-5 h-5" />
+                            ) : (
+                              <MercadoLivreIcon className="w-5 h-5" />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-neutral-900 truncate group-hover:underline">
+                              {contaAtencao.nome}
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              {contaAtencao.protegidos.toLocaleString()} de {contaAtencao.ativos.toLocaleString()} protegidos
+                            </p>
+                          </div>
+                          <span className="ml-auto text-lg font-bold text-amber-600">{contaAtencao.pct.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-neutral-100 rounded-full h-1.5 overflow-hidden">
+                          <div className="h-1.5 rounded-full bg-amber-500" style={{ width: `${contaAtencao.pct}%` }} />
+                        </div>
+                      </Link>
                     )}
                   </div>
 
